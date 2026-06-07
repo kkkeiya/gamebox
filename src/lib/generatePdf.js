@@ -36,11 +36,27 @@ export async function generateCardPdf(cards, size = 'poker', filename = 'gamebox
     const el = buildCardElement(cards[i], px.w, px.h)
     container.appendChild(el)
 
+    // Temporarily allow overflow so html2canvas captures the full element
+    const origOverflow = el.style.overflow
+    el.style.overflow = 'visible'
+
     const canvas = await html2canvas(el, {
-      scale: 2,
-      backgroundColor: null,
+      scale: 3,
       useCORS: true,
+      allowTaint: true,
+      backgroundColor: null,
+      width: el.offsetWidth,
+      height: el.offsetHeight,
+      windowWidth: el.offsetWidth,
+      windowHeight: el.offsetHeight,
+      scrollX: 0,
+      scrollY: 0,
+      x: 0,
+      y: 0,
+      logging: false,
     })
+
+    el.style.overflow = origOverflow
 
     const imgData = canvas.toDataURL('image/png')
     pdf.addImage(imgData, 'PNG', 0, 0, mm.w, mm.h)
