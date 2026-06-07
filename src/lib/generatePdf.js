@@ -6,6 +6,41 @@ const SIZE_MM = {
   mini: { w: 44, h: 63 },
 }
 
+// Font URLs (Noto Sans JP from Google Fonts)
+const FONT_URLS = {
+  normal: 'https://fonts.gstatic.com/s/notosansjp/v53/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFBEj75vx9bVFT5i7.ttf',
+  bold: 'https://fonts.gstatic.com/s/notosansjp/v53/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFBEj757R8rVFT5i7.ttf',
+}
+
+let fontCache = null
+
+async function loadNotoSansJP(doc) {
+  try {
+    if (!fontCache) {
+      const [normalRes, boldRes] = await Promise.all([
+        fetch(FONT_URLS.normal),
+        fetch(FONT_URLS.bold),
+      ])
+      const [normalBuf, boldBuf] = await Promise.all([
+        normalRes.arrayBuffer(),
+        boldRes.arrayBuffer(),
+      ])
+      const toBase64 = (buf) =>
+        btoa(new Uint8Array(buf).reduce((data, byte) => data + String.fromCharCode(byte), ''))
+      fontCache = { normal: toBase64(normalBuf), bold: toBase64(boldBuf) }
+    }
+
+    doc.addFileToVFS('NotoSansJP-Regular.ttf', fontCache.normal)
+    doc.addFont('NotoSansJP-Regular.ttf', 'NotoSansJP', 'normal')
+    doc.addFileToVFS('NotoSansJP-Bold.ttf', fontCache.bold)
+    doc.addFont('NotoSansJP-Bold.ttf', 'NotoSansJP', 'bold')
+    return true
+  } catch (e) {
+    console.warn('フォント読み込み失敗:', e)
+    return false
+  }
+}
+
 /**
  * Render an emoji string onto a temporary canvas and return a data URL.
  */
@@ -28,19 +63,26 @@ function hexToRgb(hex) {
     : { r: 255, g: 255, b: 255 }
 }
 
+/** Helper to set font with Japanese support fallback */
+function setFont(doc, fontLoaded, weight = 'normal') {
+  if (fontLoaded) {
+    doc.setFont('NotoSansJP', weight)
+  } else {
+    doc.setFont('helvetica', weight)
+  }
+}
+
 /**
  * Draw a single back page.
  */
-function drawBackPage(doc, cardW, cardH, backDesign) {
+function drawBackPage(doc, cardW, cardH, backDesign, fontLoaded) {
   const style = backDesign?.style || 'simple'
   const color = hexToRgb(backDesign?.color || '#0B1F5C')
 
-  // Fill background
   doc.setFillColor(color.r, color.g, color.b)
   doc.roundedRect(0, 0, cardW, cardH, 4, 4, 'F')
 
   if (style === 'pattern') {
-    // Draw crosshatch lines
     doc.setDrawColor(255, 255, 255)
     doc.setLineWidth(0.15)
     const step = 4
@@ -48,7 +90,6 @@ function drawBackPage(doc, cardW, cardH, backDesign) {
       doc.line(x, 0, x + cardH, cardH)
       doc.line(x, cardH, x + cardH, 0)
     }
-    // Inner border
     doc.setDrawColor(255, 255, 255)
     doc.setLineWidth(0.5)
     doc.roundedRect(3, 3, cardW - 6, cardH - 6, 3, 3, 'S')
@@ -62,10 +103,9 @@ function drawBackPage(doc, cardW, cardH, backDesign) {
     }
   }
 
-  // Center text "GB"
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(20)
-  doc.setFont('helvetica', 'bold')
+  setFont(doc, fontLoaded, 'bold')
   if (style !== 'custom' || !backDesign?.image_url) {
     doc.text('GB', cardW / 2, cardH / 2, { align: 'center' })
   }
@@ -83,6 +123,8 @@ export async function generateCardPdf(cards, size = 'poker', filename = 'gamebox
     unit: 'mm',
     format: [cardW, cardH],
   })
+
+  const fontLoaded = await loadNotoSansJP(doc)
 
   let isFirst = true
 
@@ -113,7 +155,7 @@ export async function generateCardPdf(cards, size = 'poker', filename = 'gamebox
       if (titleText && (design.layout || 'title-top') !== 'no-title') {
         doc.setTextColor(borderColor.r, borderColor.g, borderColor.b)
         doc.setFontSize(10)
-        doc.setFont('helvetica', 'bold')
+        setFont(doc, fontLoaded, 'bold')
         const titleLines = doc.splitTextToSize(titleText, cardW - padding * 2)
         const maxLines = titleLines.slice(0, 2)
         doc.text(maxLines, cardW / 2, padding + 4, { align: 'center' })
@@ -122,7 +164,6 @@ export async function generateCardPdf(cards, size = 'poker', filename = 'gamebox
 
       // Center area: image or emoji
       if (design.image_url) {
-        // Image uploaded by user
         const imgW = cardW - padding * 4
         const imgH = imgW / (63 / 88)
         const maxH = cardH * 0.45
@@ -132,7 +173,6 @@ export async function generateCardPdf(cards, size = 'poker', filename = 'gamebox
         try {
           doc.addImage(design.image_url, 'PNG', (cardW - finalW) / 2, imgY, finalW, finalH)
         } catch {
-          // Fallback to emoji
           const icon = design.icon || '🃏'
           const iconSize = 14
           const iconY = (cardH / 2) - (iconSize / 2) - 2
@@ -142,7 +182,6 @@ export async function generateCardPdf(cards, size = 'poker', filename = 'gamebox
           } catch { /* skip */ }
         }
       } else {
-        // Emoji icon
         const icon = design.icon || '🃏'
         const iconSize = 14
         const iconY = (cardH / 2) - (iconSize / 2) - 2
@@ -161,7 +200,7 @@ export async function generateCardPdf(cards, size = 'poker', filename = 'gamebox
       if (centerText) {
         doc.setTextColor(borderColor.r, borderColor.g, borderColor.b)
         doc.setFontSize(8)
-        doc.setFont('helvetica', 'bold')
+        setFont(doc, fontLoaded, 'bold')
         const ctY = design.image_url ? (cardH / 2) + (cardH * 0.2) + 4 : (cardH / 2) + 7 + 4
         doc.text(centerText, cardW / 2, ctY, { align: 'center' })
       }
@@ -170,7 +209,7 @@ export async function generateCardPdf(cards, size = 'poker', filename = 'gamebox
       const bottomText = design.bottom_text || card.description || ''
       if (bottomText) {
         doc.setFontSize(7)
-        doc.setFont('helvetica', 'normal')
+        setFont(doc, fontLoaded, 'normal')
         doc.setTextColor(80, 80, 100)
         const bottomLines = doc.splitTextToSize(bottomText, cardW - padding * 2)
         const maxBottomLines = bottomLines.slice(0, 3)
@@ -183,7 +222,7 @@ export async function generateCardPdf(cards, size = 'poker', filename = 'gamebox
       // ── Back page ──
       if (backDesign) {
         doc.addPage([cardW, cardH])
-        drawBackPage(doc, cardW, cardH, backDesign)
+        drawBackPage(doc, cardW, cardH, backDesign, fontLoaded)
       }
     }
   }
