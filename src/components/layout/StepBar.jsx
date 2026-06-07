@@ -15,7 +15,7 @@ export default function StepBar() {
   const currentIndex = steps.findIndex((s) => s.path === pathname)
 
   return (
-    <div className="w-full bg-white/80 backdrop-blur border-b border-navy/10 px-4 py-3 sticky top-0 z-50">
+    <div className="w-full bg-white/90 backdrop-blur-md border-b border-navy/10 px-4 py-3">
       <div className="max-w-3xl mx-auto flex items-center gap-1 md:gap-2">
         {steps.map((step, i) => {
           const isActive = i === currentIndex
@@ -25,7 +25,7 @@ export default function StepBar() {
               <button
                 type="button"
                 onClick={() => isDone && navigate(step.path)}
-                className={`flex items-center gap-1.5 text-xs md:text-sm font-semibold truncate transition-colors ${
+                className={`flex items-center gap-1.5 text-xs md:text-sm font-bold truncate transition-colors ${
                   isActive
                     ? 'text-navy'
                     : isDone
@@ -34,11 +34,11 @@ export default function StepBar() {
                 }`}
               >
                 <span
-                  className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                  className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-extrabold transition-colors ${
                     isActive
                       ? 'bg-accent text-navy'
                       : isDone
-                        ? 'bg-navy/20 text-navy/60'
+                        ? 'bg-navy text-white'
                         : 'bg-navy/10 text-navy/30'
                   }`}
                 >
@@ -48,8 +48,8 @@ export default function StepBar() {
               </button>
               {i < steps.length - 1 && (
                 <div
-                  className={`flex-1 h-0.5 mx-1 md:mx-2 rounded ${
-                    isDone ? 'bg-navy/20' : 'bg-navy/10'
+                  className={`flex-1 h-0.5 mx-1 md:mx-2 rounded-full transition-colors ${
+                    isDone ? 'bg-navy/30' : 'bg-navy/10'
                   }`}
                 />
               )}

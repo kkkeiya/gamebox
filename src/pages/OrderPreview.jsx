@@ -2,6 +2,8 @@ import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../store/gameStore'
 import { calculatePrice } from '../lib/pricing'
 import PageShell from '../components/layout/PageShell'
+import Button from '../components/ui/Button'
+import Card from '../components/ui/Card'
 
 const GENRE_LABELS = { party: 'パーティーゲーム', coop: '協力ゲーム' }
 const SIZE_LABELS = { poker: 'ポーカー (63×88mm)', bridge: 'ブリッジ (58×89mm)' }
@@ -17,11 +19,11 @@ export default function OrderPreview() {
 
   return (
     <PageShell>
-      <h1 className="text-2xl md:text-3xl font-extrabold text-navy">見積もり確認</h1>
+      <h1 className="text-2xl md:text-3xl font-black text-navy">見積もり確認</h1>
       <p className="mt-1 text-navy/50 text-sm">内容を確認して、発注データを出力しましょう</p>
 
       {/* Summary */}
-      <div className="mt-8 bg-white rounded-2xl border border-navy/10 divide-y divide-navy/10">
+      <Card className="mt-8 divide-y divide-navy/10">
         <Row label="ジャンル" value={GENRE_LABELS[genre] || genre} />
         <Row label="タイトル" value={gameTitle || '未設定'} />
         <Row label="プレイ人数" value={`${rules.players}人`} />
@@ -30,12 +32,11 @@ export default function OrderPreview() {
         <Row label="カード合計枚数" value={`${pricing.totalCards}枚`} />
         <Row label="カードサイズ" value={SIZE_LABELS[cardSpec.size]} />
         <Row label="表面加工" value={SURFACE_LABELS[cardSpec.surface]} />
-      </div>
+      </Card>
 
       {/* Options */}
-      <div className="mt-6 space-y-4">
-        {/* Rulebook toggle */}
-        <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-navy/10">
+      <div className="mt-6 space-y-3">
+        <Card className="flex items-center justify-between px-5 py-3.5">
           <span className="text-sm font-bold text-navy">ルールブックを含める</span>
           <button
             type="button"
@@ -50,15 +51,14 @@ export default function OrderPreview() {
               }`}
             />
           </button>
-        </div>
+        </Card>
 
-        {/* Sets */}
-        <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-navy/10">
+        <Card className="flex items-center justify-between px-5 py-3.5">
           <span className="text-sm font-bold text-navy">セット数</span>
           <select
             value={cardSpec.sets}
             onChange={(e) => setCardSpec({ sets: Number(e.target.value) })}
-            className="rounded-lg border border-navy/20 px-3 py-1.5 text-sm text-navy font-bold focus:outline-none focus:ring-2 focus:ring-accent"
+            className="rounded-full border-2 border-blue-200 px-4 py-1.5 text-sm text-navy font-bold focus:outline-none focus:border-navy transition-colors"
           >
             {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
               <option key={n} value={n}>
@@ -66,41 +66,37 @@ export default function OrderPreview() {
               </option>
             ))}
           </select>
-        </div>
+        </Card>
       </div>
 
       {/* Pricing */}
-      <div className="mt-6 bg-navy rounded-2xl p-5 text-white space-y-2">
+      <div className="mt-6 bg-navy rounded-2xl p-6 text-white space-y-3">
         <div className="flex justify-between text-sm">
           <span className="opacity-70">基本料金</span>
-          <span>¥{fmt(pricing.baseFee)}</span>
+          <span className="font-bold">¥{fmt(pricing.baseFee)}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="opacity-70">
             カード（{pricing.totalCards}枚 × {cardSpec.sets}セット）
           </span>
-          <span>¥{fmt(pricing.cardTotal)}</span>
+          <span className="font-bold">¥{fmt(pricing.cardTotal)}</span>
         </div>
-        <div className="border-t border-white/20 pt-2 flex justify-between text-lg font-extrabold">
+        <div className="border-t border-white/20 pt-3 flex justify-between text-lg font-extrabold">
           <span>合計（税別）</span>
           <span className="text-accent">¥{fmt(pricing.total)}</span>
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={() => navigate('/export')}
-        className="mt-10 w-full rounded-xl bg-navy text-white font-bold py-3.5 text-base hover:bg-navy/90 transition-colors cursor-pointer"
-      >
+      <Button onClick={() => navigate('/export')} className="mt-10 w-full">
         発注データを出力する →
-      </button>
+      </Button>
     </PageShell>
   )
 }
 
 function Row({ label, value }) {
   return (
-    <div className="flex justify-between px-5 py-3">
+    <div className="flex justify-between px-5 py-3.5">
       <span className="text-sm text-navy/50">{label}</span>
       <span className="text-sm font-bold text-navy">{value}</span>
     </div>

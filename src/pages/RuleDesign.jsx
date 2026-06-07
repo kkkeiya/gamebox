@@ -2,8 +2,13 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../store/gameStore'
 import PageShell from '../components/layout/PageShell'
+import Button from '../components/ui/Button'
+import Card from '../components/ui/Card'
 
 const playtimeOptions = [5, 15, 30, 60]
+
+const inputClass =
+  'w-full rounded-xl border-2 border-blue-200 bg-white px-4 py-3 text-navy placeholder:text-navy/30 focus:outline-none focus:border-navy transition-colors'
 
 export default function RuleDesign() {
   const navigate = useNavigate()
@@ -21,26 +26,26 @@ export default function RuleDesign() {
 
   return (
     <PageShell>
-      <h1 className="text-2xl md:text-3xl font-extrabold text-navy">ルール設計</h1>
+      <h1 className="text-2xl md:text-3xl font-black text-navy">ルール設計</h1>
       <p className="mt-1 text-navy/50 text-sm">ゲームの基本ルールを決めましょう</p>
 
-      <div className="mt-8 space-y-6">
+      <Card className="mt-8 p-6 space-y-6">
         {/* Game Title */}
         <div>
-          <label className="block text-sm font-bold text-navy mb-1">ゲームタイトル</label>
+          <label className="block text-sm font-bold text-navy mb-1.5">ゲームタイトル</label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="例：人狼カードゲーム"
-            className="w-full rounded-xl border border-navy/20 bg-white px-4 py-3 text-navy placeholder:text-navy/30 focus:outline-none focus:ring-2 focus:ring-accent"
+            className={inputClass}
           />
         </div>
 
         {/* Player Count */}
         <div>
-          <label className="block text-sm font-bold text-navy mb-1">
-            プレイ人数: <span className="text-accent">{players}人</span>
+          <label className="block text-sm font-bold text-navy mb-1.5">
+            プレイ人数: <span className="text-accent-warm font-extrabold">{players}人</span>
           </label>
           <input
             type="range"
@@ -48,7 +53,7 @@ export default function RuleDesign() {
             max={10}
             value={players}
             onChange={(e) => setPlayers(Number(e.target.value))}
-            className="w-full accent-accent"
+            className="w-full accent-navy"
           />
           <div className="flex justify-between text-xs text-navy/40 mt-1">
             <span>2人</span>
@@ -65,10 +70,10 @@ export default function RuleDesign() {
                 key={t}
                 type="button"
                 onClick={() => setPlaytime(t)}
-                className={`rounded-xl py-2.5 text-sm font-bold transition-all ${
+                className={`rounded-full py-2.5 text-sm font-bold transition-all cursor-pointer ${
                   playtime === t
                     ? 'bg-navy text-white'
-                    : 'bg-white border border-navy/15 text-navy/60 hover:border-navy/30'
+                    : 'bg-white border-2 border-blue-200 text-navy/60 hover:border-navy/30'
                 }`}
               >
                 {t}分
@@ -79,24 +84,20 @@ export default function RuleDesign() {
 
         {/* Win Condition */}
         <div>
-          <label className="block text-sm font-bold text-navy mb-1">勝利条件</label>
+          <label className="block text-sm font-bold text-navy mb-1.5">勝利条件</label>
           <textarea
             value={winCondition}
             onChange={(e) => setWinCondition(e.target.value)}
             placeholder="例：最後まで生き残ったプレイヤーが勝利"
             rows={3}
-            className="w-full rounded-xl border border-navy/20 bg-white px-4 py-3 text-navy placeholder:text-navy/30 focus:outline-none focus:ring-2 focus:ring-accent resize-none"
+            className={`${inputClass} resize-none`}
           />
         </div>
-      </div>
+      </Card>
 
-      <button
-        type="button"
-        onClick={handleNext}
-        className="mt-10 w-full rounded-xl bg-navy text-white font-bold py-3.5 text-base hover:bg-navy/90 transition-colors cursor-pointer"
-      >
+      <Button onClick={handleNext} className="mt-10 w-full">
         次へ →
-      </button>
+      </Button>
     </PageShell>
   )
 }
