@@ -1,36 +1,52 @@
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
+import { buildCardElement } from './buildCardHtml'
 
 const SIZE_MM = {
   poker: { w: 63, h: 88 },
   bridge: { w: 58, h: 89 },
+  mini: { w: 44, h: 63 },
+}
+
+// Pixel dimensions for rendering (3px per mm gives good quality at scale:2)
+const SIZE_PX = {
+  poker: { w: 189, h: 264 },
+  bridge: { w: 174, h: 267 },
+  mini: { w: 132, h: 189 },
 }
 
 /**
- * Renders each card DOM node to a PDF (one card per page, actual card size).
- * @param {HTMLElement[]} cardElements - array of card DOM elements to capture
- * @param {string} size - 'poker' | 'bridge'
- * @param {string} [filename] - output filename
+ * Generates a PDF with one card per page at actual card size.
+ * Uses buildCardElement for consistent rendering with the preview.
  */
-export async function generateCardPdf(cardElements, size = 'poker', filename = 'gamebox_cards_preview.pdf') {
-  const { w, h } = SIZE_MM[size] || SIZE_MM.poker
-  const dpi = 150
-  const pxPerMm = dpi / 25.4
+export async function generateCardPdf(cards, size = 'poker', filename = 'gamebox_cards_preview.pdf') {
+  const mm = SIZE_MM[size] || SIZE_MM.poker
+  const px = SIZE_PX[size] || SIZE_PX.poker
 
-  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [w, h] })
+  // Create off-screen container
+  const container = document.createElement('div')
+  container.style.cssText = 'position:absolute;left:-9999px;top:0'
+  document.body.appendChild(container)
 
-  for (let i = 0; i < cardElements.length; i++) {
-    if (i > 0) pdf.addPage([w, h])
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [mm.w, mm.h] })
 
-    const canvas = await html2canvas(cardElements[i], {
+  for (let i = 0; i < cards.length; i++) {
+    if (i > 0) pdf.addPage([mm.w, mm.h])
+
+    const el = buildCardElement(cards[i], px.w, px.h)
+    container.appendChild(el)
+
+    const canvas = await html2canvas(el, {
       scale: 2,
-      backgroundColor: '#ffffff',
+      backgroundColor: null,
       useCORS: true,
     })
 
     const imgData = canvas.toDataURL('image/png')
-    pdf.addImage(imgData, 'PNG', 0, 0, w, h)
+    pdf.addImage(imgData, 'PNG', 0, 0, mm.w, mm.h)
+    container.removeChild(el)
   }
 
+  document.body.removeChild(container)
   pdf.save(filename)
 }

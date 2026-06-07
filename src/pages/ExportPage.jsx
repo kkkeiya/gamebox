@@ -6,9 +6,6 @@ import { generateCardPdf } from '../lib/generatePdf'
 import PageShell from '../components/layout/PageShell'
 import Button from '../components/ui/Button'
 
-const CARD_W = 189
-const CARD_H = 264
-
 export default function ExportPage() {
   const navigate = useNavigate()
   const store = useGameStore()
@@ -33,23 +30,7 @@ export default function ExportPage() {
   const handleDownloadPdf = async () => {
     setPdfLoading(true)
     try {
-      const container = document.createElement('div')
-      container.style.cssText = 'position:absolute;left:-9999px;top:0'
-      document.body.appendChild(container)
-      const elements = []
-      for (const card of store.cards) {
-        const d = card.design || {}
-        const el = document.createElement('div')
-        el.style.cssText = `width:${CARD_W}px;height:${CARD_H}px;background:${d.bg_color || '#fff'};display:flex;flex-direction:column;align-items:center;justify-content:space-between;font-family:Nunito,sans-serif;overflow:hidden;border-radius:12px;border:3px solid ${d.border_color || '#0B1F5C'}`
-        const layout = d.layout || 'title-top'
-        const titleHtml = layout !== 'no-title' ? `<div style="width:100%;padding:8px 12px;text-align:center"><div style="font-size:12px;font-weight:900;color:${d.border_color || '#0B1F5C'}">${d.title_text || card.name}</div></div>` : ''
-        const bottomHtml = `<div style="width:100%;padding:8px 12px;text-align:center"><div style="font-size:10px;color:rgba(11,31,92,0.5)">${d.bottom_text || card.description || ''}</div></div>`
-        el.innerHTML = `${layout === 'title-top' ? titleHtml : ''}<div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px"><span style="font-size:48px">${d.icon || '🃏'}</span>${d.center_text ? `<span style="font-size:11px;font-weight:700;color:${d.border_color || '#0B1F5C'}">${d.center_text}</span>` : ''}</div>${layout === 'title-bottom' ? titleHtml : ''}${bottomHtml}`
-        container.appendChild(el)
-        elements.push(el)
-      }
-      await generateCardPdf(elements, store.cardSpec.size)
-      document.body.removeChild(container)
+      await generateCardPdf(store.cards, store.cardSpec.size)
     } catch (err) { console.error('PDF generation failed:', err) }
     finally { setPdfLoading(false) }
   }

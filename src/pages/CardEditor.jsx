@@ -14,7 +14,8 @@ const BG_COLORS = ['#ffffff', '#EBF1FF', '#FFF9E0', '#E8F5E9', '#FDE8F0', '#F3E5
 const BORDER_COLORS = ['#0B1F5C', '#2C52C8', '#FFBC00', '#2E7D32', '#C62828', '#6A1B9A']
 const EMOJI_PICKER = ['🐺','🦊','🧙‍♂️','👤','🔮','⚔️','🌙','🎭','💬','🤝','🎯','🃏','👑','🗡️','🛡️','🔑','💎','🌟','⭐','🎪']
 
-const FONT_SIZES = { S: { icon: 'text-4xl', center: 'text-xs' }, M: { icon: 'text-6xl', center: 'text-sm' }, L: { icon: 'text-7xl', center: 'text-base' } }
+const TITLE_SIZES = { S: 'text-[12px]', M: 'text-[14px]', L: 'text-[16px]' }
+const BOTTOM_SIZES = { S: 'text-[10px]', M: 'text-[12px]', L: 'text-[13px]' }
 const LAYOUTS = [
   { key: 'title-top', label: 'タイトル上' },
   { key: 'title-bottom', label: 'タイトル下' },
@@ -42,28 +43,14 @@ export default function CardEditor() {
   }
 
   const design = current.design || {}
-  const fontSize = FONT_SIZES[design.font_size || 'M']
+  const fs = design.font_size || 'M'
+  const titleSize = TITLE_SIZES[fs]
+  const bottomSize = BOTTOM_SIZES[fs]
 
   const handleDownloadPdf = async () => {
     setPdfLoading(true)
     try {
-      const container = document.createElement('div')
-      container.style.cssText = 'position:absolute;left:-9999px;top:0'
-      document.body.appendChild(container)
-      const elements = []
-      for (const card of cards) {
-        const d = card.design || {}
-        const el = document.createElement('div')
-        el.style.cssText = `width:${CARD_W}px;height:${CARD_H}px;background:${d.bg_color || '#fff'};display:flex;flex-direction:column;align-items:center;justify-content:space-between;font-family:Nunito,sans-serif;overflow:hidden;border-radius:12px;border:3px solid ${d.border_color || '#0B1F5C'}`
-        const layout = d.layout || 'title-top'
-        const titleHtml = layout !== 'no-title' ? `<div style="width:100%;padding:8px 12px;text-align:center"><div style="font-size:12px;font-weight:900;color:${d.border_color || '#0B1F5C'};overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${d.title_text || card.name}</div></div>` : ''
-        const bottomHtml = `<div style="width:100%;padding:8px 12px;text-align:center"><div style="font-size:10px;color:rgba(11,31,92,0.5);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${d.bottom_text || card.description || ''}</div></div>`
-        el.innerHTML = `${layout === 'title-top' ? titleHtml : ''}<div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px"><span style="font-size:48px">${d.icon || '🃏'}</span>${d.center_text ? `<span style="font-size:11px;font-weight:700;color:${d.border_color || '#0B1F5C'}">${d.center_text}</span>` : ''}</div>${layout === 'title-bottom' ? titleHtml : ''}${bottomHtml}`
-        container.appendChild(el)
-        elements.push(el)
-      }
-      await generateCardPdf(elements, cardSpec.size)
-      document.body.removeChild(container)
+      await generateCardPdf(cards, cardSpec.size)
     } catch (err) { console.error('PDF generation failed:', err) }
     finally { setPdfLoading(false) }
   }
@@ -204,24 +191,24 @@ export default function CardEditor() {
                 <div className="absolute border-2 border-dashed border-navy/15 rounded-[20px] pointer-events-none"
                   style={{ top: -BLEED, left: -BLEED, width: CARD_W + BLEED * 2, height: CARD_H + BLEED * 2 }} />
                 <div className="absolute -top-6 right-0 text-[10px] text-navy/30 font-bold">塗り足し 3mm</div>
-                <div className="rounded-2xl shadow-lg flex flex-col items-center justify-between overflow-hidden"
+                <div className="rounded-2xl shadow-lg flex flex-col items-center overflow-hidden"
                   style={{ width: CARD_W, height: CARD_H, background: design.bg_color || '#fff', border: `3px solid ${design.border_color || '#0B1F5C'}` }}>
                   {(design.layout || 'title-top') === 'title-top' && (
-                    <div className="w-full px-3 py-2.5" style={{ background: 'rgba(240,244,255,0.5)' }}>
-                      <p className="text-xs font-black text-center truncate" style={{ color: design.border_color || '#0B1F5C' }}>{design.title_text || current.name}</p>
+                    <div className="w-full px-2.5 pt-2 pb-1 shrink-0">
+                      <p className={`${titleSize} font-black text-center leading-[1.3] line-clamp-2`} style={{ color: design.border_color || '#0B1F5C' }}>{design.title_text || current.name}</p>
                     </div>
                   )}
-                  <div className="flex-1 flex flex-col items-center justify-center gap-1">
-                    <span className={fontSize.icon}>{design.icon || '🃏'}</span>
-                    {design.center_text && <span className={`${fontSize.center} font-bold`} style={{ color: design.border_color || '#0B1F5C' }}>{design.center_text}</span>}
+                  <div className="flex-1 flex flex-col items-center justify-center gap-1 min-h-0">
+                    <span className="text-[48px] leading-none">{design.icon || '🃏'}</span>
+                    {design.center_text && <span className="text-[11px] font-bold leading-[1.3]" style={{ color: design.border_color || '#0B1F5C' }}>{design.center_text}</span>}
                   </div>
                   {(design.layout || 'title-top') === 'title-bottom' && (
-                    <div className="w-full px-3 py-2" style={{ background: 'rgba(240,244,255,0.5)' }}>
-                      <p className="text-xs font-black text-center truncate" style={{ color: design.border_color || '#0B1F5C' }}>{design.title_text || current.name}</p>
+                    <div className="w-full px-2.5 pt-1 pb-1 shrink-0">
+                      <p className={`${titleSize} font-black text-center leading-[1.3] line-clamp-2`} style={{ color: design.border_color || '#0B1F5C' }}>{design.title_text || current.name}</p>
                     </div>
                   )}
-                  <div className="w-full px-3 py-2" style={{ background: 'rgba(240,244,255,0.5)' }}>
-                    <p className="text-[10px] text-navy/50 text-center line-clamp-2">{design.bottom_text || current.description || ''}</p>
+                  <div className="w-full px-2.5 pt-1 pb-2 shrink-0">
+                    <p className={`${bottomSize} text-navy/50 text-center leading-[1.3] line-clamp-3`}>{design.bottom_text || current.description || ''}</p>
                   </div>
                 </div>
               </div>
