@@ -2,12 +2,38 @@
 
 @theme {
   --color-navy: #0B1F5C;
+  --color-navy-light: #2C52C8;
   --color-accent: #FFD233;
+  --color-accent-warm: #FFBC00;
   --color-bg: #F0F4FF;
+  --color-bg-alt: #EBF1FF;
   --font-sans: "Nunito", sans-serif;
 }
 
 .dot-pattern {
   background-image: radial-gradient(circle, #c8d4f0 1px, transparent 1px);
   background-size: 24px 24px;
+}
+
+.dot-pattern-hero {
+  background-image: radial-gradient(circle, #B8CCFF 1.2px, transparent 1.2px);
+  background-size: 24px 24px;
+}
+
+/* Marquee */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee 25s linear infinite;
+}
+
+/* FAQ open animation */
+details[open] summary ~ * {
+  animation: fadeIn 0.2s ease-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
