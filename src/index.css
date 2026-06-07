@@ -1,1 +1,13 @@
 @import "tailwindcss";
+
+@theme {
+  --color-navy: #0B1F5C;
+  --color-accent: #FFD233;
+  --color-bg: #F0F4FF;
+  --font-sans: "Nunito", sans-serif;
+}
+
+.dot-pattern {
+  background-image: radial-gradient(circle, #c8d4f0 1px, transparent 1px);
+  background-size: 24px 24px;
+}
