@@ -5,8 +5,10 @@
   --color-navy-light: #2C52C8;
   --color-accent: #FFD233;
   --color-accent-warm: #FFBC00;
+  --color-accent-dark: #7A5900;
   --color-bg: #F0F4FF;
   --color-bg-alt: #EBF1FF;
+  --color-step-border: #D0DAEF;
   --font-sans: "Nunito", sans-serif;
 }
 
@@ -26,7 +28,7 @@
   100% { transform: translateX(-50%); }
 }
 .animate-marquee {
-  animation: marquee 25s linear infinite;
+  animation: marquee 26s linear infinite;
 }
 
 /* FAQ open animation */
@@ -36,4 +38,25 @@ details[open] summary ~ * {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Range slider */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  background: #D0DAEF;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #0B1F5C;
+  cursor: pointer;
+  border: 3px solid white;
+  box-shadow: 0 1px 4px rgba(0,0,0,.2);
 }
