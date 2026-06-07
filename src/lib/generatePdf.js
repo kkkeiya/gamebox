@@ -6,44 +6,66 @@ const SIZE_MM = {
   mini: { w: 44, h: 63 },
 }
 
-// Font URLs (Noto Sans JP from Google Fonts)
-const FONT_URLS = {
-  normal: 'https://fonts.gstatic.com/s/notosansjp/v53/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFBEj75vx9bVFT5i7.ttf',
-  bold: 'https://fonts.gstatic.com/s/notosansjp/v53/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFBEj757R8rVFT5i7.ttf',
-}
-
 let fontCache = null
 
-async function loadNotoSansJP(doc) {
-  try {
-    if (!fontCache) {
-      const [normalRes, boldRes] = await Promise.all([
-        fetch(FONT_URLS.normal),
-        fetch(FONT_URLS.bold),
-      ])
-      const [normalBuf, boldBuf] = await Promise.all([
-        normalRes.arrayBuffer(),
-        boldRes.arrayBuffer(),
-      ])
-      const toBase64 = (buf) =>
-        btoa(new Uint8Array(buf).reduce((data, byte) => data + String.fromCharCode(byte), ''))
-      fontCache = { normal: toBase64(normalBuf), bold: toBase64(boldBuf) }
-    }
+/**
+ * Load Noto Sans JP with multiple CDN fallbacks and timeout.
+ * Returns true if loaded, false otherwise. Never throws.
+ */
+async function loadJapaneseFont(doc) {
+  const urls = [
+    'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-jp@5.0.18/files/noto-sans-jp-japanese-400-normal.woff2',
+    'https://fonts.gstatic.com/s/notosansjp/v53/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFBEj75vx9bVFT5i7.ttf',
+  ]
 
-    doc.addFileToVFS('NotoSansJP-Regular.ttf', fontCache.normal)
-    doc.addFont('NotoSansJP-Regular.ttf', 'NotoSansJP', 'normal')
-    doc.addFileToVFS('NotoSansJP-Bold.ttf', fontCache.bold)
-    doc.addFont('NotoSansJP-Bold.ttf', 'NotoSansJP', 'bold')
-    return true
-  } catch (e) {
-    console.warn('フォント読み込み失敗:', e)
-    return false
+  if (fontCache) {
+    try {
+      const ext = fontCache.ext
+      doc.addFileToVFS(`NotoSansJP.${ext}`, fontCache.base64)
+      doc.addFont(`NotoSansJP.${ext}`, 'NotoSansJP', 'normal')
+      doc.addFont(`NotoSansJP.${ext}`, 'NotoSansJP', 'bold')
+      return true
+    } catch (e) {
+      console.warn('キャッシュフォント登録失敗:', e)
+      fontCache = null
+    }
   }
+
+  for (const url of urls) {
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 5000)
+      const res = await fetch(url, { signal: controller.signal })
+      clearTimeout(timeoutId)
+
+      if (!res.ok) continue
+
+      const buffer = await res.arrayBuffer()
+      const uint8 = new Uint8Array(buffer)
+      let binary = ''
+      for (let i = 0; i < uint8.length; i++) {
+        binary += String.fromCharCode(uint8[i])
+      }
+      const base64 = btoa(binary)
+
+      const ext = url.endsWith('.ttf') ? 'ttf' : 'woff2'
+      fontCache = { base64, ext }
+
+      doc.addFileToVFS(`NotoSansJP.${ext}`, base64)
+      doc.addFont(`NotoSansJP.${ext}`, 'NotoSansJP', 'normal')
+      doc.addFont(`NotoSansJP.${ext}`, 'NotoSansJP', 'bold')
+      console.log('日本語フォント読み込み成功:', url)
+      return true
+    } catch (e) {
+      console.warn('フォント読み込み失敗、次を試します:', url, e.message)
+      continue
+    }
+  }
+
+  console.warn('全フォント読み込み失敗。helveticaで代替します。')
+  return false
 }
 
-/**
- * Render an emoji string onto a temporary canvas and return a data URL.
- */
 function emojiToImage(emoji, sizePx = 128) {
   const canvas = document.createElement('canvas')
   canvas.width = sizePx
@@ -63,7 +85,6 @@ function hexToRgb(hex) {
     : { r: 255, g: 255, b: 255 }
 }
 
-/** Helper to set font with Japanese support fallback */
 function setFont(doc, fontLoaded, weight = 'normal') {
   if (fontLoaded) {
     doc.setFont('NotoSansJP', weight)
@@ -72,9 +93,6 @@ function setFont(doc, fontLoaded, weight = 'normal') {
   }
 }
 
-/**
- * Draw a single back page.
- */
 function drawBackPage(doc, cardW, cardH, backDesign, fontLoaded) {
   const style = backDesign?.style || 'simple'
   const color = hexToRgb(backDesign?.color || '#0B1F5C')
@@ -115,117 +133,119 @@ function drawBackPage(doc, cardW, cardH, backDesign, fontLoaded) {
  * Generate a PDF with front + back pages for each card.
  */
 export async function generateCardPdf(cards, size = 'poker', filename = 'gamebox_cards_preview.pdf', backDesign = null) {
-  const { w: cardW, h: cardH } = SIZE_MM[size] || SIZE_MM.poker
-  const padding = 4
+  try {
+    const { w: cardW, h: cardH } = SIZE_MM[size] || SIZE_MM.poker
+    const padding = 4
 
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: [cardW, cardH],
-  })
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: [cardW, cardH],
+    })
 
-  const fontLoaded = await loadNotoSansJP(doc)
+    const fontLoaded = await loadJapaneseFont(doc)
 
-  let isFirst = true
+    let isFirst = true
 
-  for (const card of cards) {
-    const repeat = card.count || card.quantity || 1
+    for (const card of cards) {
+      const repeat = card.count || card.quantity || 1
 
-    for (let r = 0; r < repeat; r++) {
-      // ── Front page ──
-      if (!isFirst) doc.addPage([cardW, cardH])
-      isFirst = false
+      for (let r = 0; r < repeat; r++) {
+        if (!isFirst) doc.addPage([cardW, cardH])
+        isFirst = false
 
-      const design = card.design || {}
-      const bgColor = hexToRgb(design.bg_color || '#ffffff')
-      const borderColor = hexToRgb(design.border_color || '#0B1F5C')
+        const design = card.design || {}
+        const bgColor = hexToRgb(design.bg_color || '#ffffff')
+        const borderColor = hexToRgb(design.border_color || '#0B1F5C')
 
-      // Background
-      doc.setFillColor(bgColor.r, bgColor.g, bgColor.b)
-      doc.roundedRect(0, 0, cardW, cardH, 4, 4, 'F')
+        // Background
+        doc.setFillColor(bgColor.r, bgColor.g, bgColor.b)
+        doc.roundedRect(0, 0, cardW, cardH, 4, 4, 'F')
 
-      // Border
-      doc.setDrawColor(borderColor.r, borderColor.g, borderColor.b)
-      doc.setLineWidth(0.8)
-      doc.roundedRect(0.4, 0.4, cardW - 0.8, cardH - 0.8, 4, 4, 'S')
+        // Border
+        doc.setDrawColor(borderColor.r, borderColor.g, borderColor.b)
+        doc.setLineWidth(0.8)
+        doc.roundedRect(0.4, 0.4, cardW - 0.8, cardH - 0.8, 4, 4, 'S')
 
-      // Title text (top)
-      const titleText = design.title_text || card.name || card.type || ''
-      let titleBottomY = padding + 2
-      if (titleText && (design.layout || 'title-top') !== 'no-title') {
-        doc.setTextColor(borderColor.r, borderColor.g, borderColor.b)
-        doc.setFontSize(10)
-        setFont(doc, fontLoaded, 'bold')
-        const titleLines = doc.splitTextToSize(titleText, cardW - padding * 2)
-        const maxLines = titleLines.slice(0, 2)
-        doc.text(maxLines, cardW / 2, padding + 4, { align: 'center' })
-        titleBottomY = padding + 4 + maxLines.length * 4
-      }
+        // Title text
+        const titleText = design.title_text || card.name || card.type || ''
+        if (titleText && (design.layout || 'title-top') !== 'no-title') {
+          doc.setTextColor(borderColor.r, borderColor.g, borderColor.b)
+          doc.setFontSize(10)
+          setFont(doc, fontLoaded, 'bold')
+          const titleLines = doc.splitTextToSize(titleText, cardW - padding * 2)
+          const maxLines = titleLines.slice(0, 2)
+          doc.text(maxLines, cardW / 2, padding + 4, { align: 'center' })
+        }
 
-      // Center area: image or emoji
-      if (design.image_url) {
-        const imgW = cardW - padding * 4
-        const imgH = imgW / (63 / 88)
-        const maxH = cardH * 0.45
-        const finalH = Math.min(imgH, maxH)
-        const finalW = finalH * (63 / 88)
-        const imgY = (cardH / 2) - (finalH / 2) - 2
-        try {
-          doc.addImage(design.image_url, 'PNG', (cardW - finalW) / 2, imgY, finalW, finalH)
-        } catch {
+        // Center area: image or emoji
+        if (design.image_url) {
+          const imgW = cardW - padding * 4
+          const imgH = imgW / (63 / 88)
+          const maxH = cardH * 0.45
+          const finalH = Math.min(imgH, maxH)
+          const finalW = finalH * (63 / 88)
+          const imgY = (cardH / 2) - (finalH / 2) - 2
+          try {
+            doc.addImage(design.image_url, 'PNG', (cardW - finalW) / 2, imgY, finalW, finalH)
+          } catch {
+            const icon = design.icon || '🃏'
+            const iconSize = 14
+            const iconY = (cardH / 2) - (iconSize / 2) - 2
+            try {
+              const imgData = emojiToImage(icon, 128)
+              doc.addImage(imgData, 'PNG', (cardW - iconSize) / 2, iconY, iconSize, iconSize)
+            } catch { /* skip */ }
+          }
+        } else {
           const icon = design.icon || '🃏'
           const iconSize = 14
           const iconY = (cardH / 2) - (iconSize / 2) - 2
           try {
             const imgData = emojiToImage(icon, 128)
             doc.addImage(imgData, 'PNG', (cardW - iconSize) / 2, iconY, iconSize, iconSize)
-          } catch { /* skip */ }
+          } catch {
+            doc.setDrawColor(200, 200, 200)
+            doc.setLineWidth(0.3)
+            doc.rect((cardW - iconSize) / 2, iconY, iconSize, iconSize, 'S')
+          }
         }
-      } else {
-        const icon = design.icon || '🃏'
-        const iconSize = 14
-        const iconY = (cardH / 2) - (iconSize / 2) - 2
-        try {
-          const imgData = emojiToImage(icon, 128)
-          doc.addImage(imgData, 'PNG', (cardW - iconSize) / 2, iconY, iconSize, iconSize)
-        } catch {
-          doc.setDrawColor(200, 200, 200)
-          doc.setLineWidth(0.3)
-          doc.rect((cardW - iconSize) / 2, iconY, iconSize, iconSize, 'S')
+
+        // Center text
+        const centerText = design.center_text || ''
+        if (centerText) {
+          doc.setTextColor(borderColor.r, borderColor.g, borderColor.b)
+          doc.setFontSize(8)
+          setFont(doc, fontLoaded, 'bold')
+          const ctY = design.image_url ? (cardH / 2) + (cardH * 0.2) + 4 : (cardH / 2) + 7 + 4
+          doc.text(centerText, cardW / 2, ctY, { align: 'center' })
         }
-      }
 
-      // Center text (below icon/image)
-      const centerText = design.center_text || ''
-      if (centerText) {
-        doc.setTextColor(borderColor.r, borderColor.g, borderColor.b)
-        doc.setFontSize(8)
-        setFont(doc, fontLoaded, 'bold')
-        const ctY = design.image_url ? (cardH / 2) + (cardH * 0.2) + 4 : (cardH / 2) + 7 + 4
-        doc.text(centerText, cardW / 2, ctY, { align: 'center' })
-      }
+        // Bottom text
+        const bottomText = design.bottom_text || card.description || ''
+        if (bottomText) {
+          doc.setFontSize(7)
+          setFont(doc, fontLoaded, 'normal')
+          doc.setTextColor(80, 80, 100)
+          const bottomLines = doc.splitTextToSize(bottomText, cardW - padding * 2)
+          const maxBottomLines = bottomLines.slice(0, 3)
+          const lineHeight = 3.5
+          const totalHeight = maxBottomLines.length * lineHeight
+          const startY = cardH - padding - totalHeight + lineHeight
+          doc.text(maxBottomLines, cardW / 2, startY, { align: 'center' })
+        }
 
-      // Bottom text
-      const bottomText = design.bottom_text || card.description || ''
-      if (bottomText) {
-        doc.setFontSize(7)
-        setFont(doc, fontLoaded, 'normal')
-        doc.setTextColor(80, 80, 100)
-        const bottomLines = doc.splitTextToSize(bottomText, cardW - padding * 2)
-        const maxBottomLines = bottomLines.slice(0, 3)
-        const lineHeight = 3.5
-        const totalHeight = maxBottomLines.length * lineHeight
-        const startY = cardH - padding - totalHeight + lineHeight
-        doc.text(maxBottomLines, cardW / 2, startY, { align: 'center' })
-      }
-
-      // ── Back page ──
-      if (backDesign) {
-        doc.addPage([cardW, cardH])
-        drawBackPage(doc, cardW, cardH, backDesign, fontLoaded)
+        // Back page
+        if (backDesign) {
+          doc.addPage([cardW, cardH])
+          drawBackPage(doc, cardW, cardH, backDesign, fontLoaded)
+        }
       }
     }
-  }
 
-  doc.save(filename)
+    doc.save(filename)
+  } catch (e) {
+    console.error('PDF生成エラー:', e)
+    alert('PDFの生成に失敗しました。もう一度お試しください。')
+  }
 }

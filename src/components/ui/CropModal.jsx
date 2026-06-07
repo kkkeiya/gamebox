@@ -1,22 +1,15 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
 const CARD_W = 252
 const CARD_H = 352
-const ASPECT = 63 / 88
 
 export default function CropModal({ src, onApply, onCancel }) {
-  const [scale, setScale] = useState(100)
-  const [posX, setPosX] = useState(0)
-  const [posY, setPosY] = useState(0)
+  const [imageScale, setImageScale] = useState(100)
+  const [offsetX, setOffsetX] = useState(0)
+  const [offsetY, setOffsetY] = useState(0)
   const [imgLoaded, setImgLoaded] = useState(false)
   const imgRef = useRef(null)
-  const previewRef = useRef(null)
 
-  const onImageLoad = useCallback(() => {
-    setImgLoaded(true)
-  }, [])
-
-  // Preload image
   useEffect(() => {
     const img = new Image()
     img.onload = () => {
@@ -34,72 +27,21 @@ export default function CropModal({ src, onApply, onCancel }) {
     canvas.height = CARD_H
     const ctx = canvas.getContext('2d')
 
+    // White background to prevent black edges
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, CARD_W, CARD_H)
+
     const img = imgRef.current
-    const imgAspect = img.naturalWidth / img.naturalHeight
-    const cardAspect = CARD_W / CARD_H
+    const scale = imageScale / 100
+    const drawW = img.naturalWidth * scale
+    const drawH = img.naturalHeight * scale
+    const x = (CARD_W - drawW) / 2 + (offsetX / 100) * CARD_W
+    const y = (CARD_H - drawH) / 2 + (offsetY / 100) * CARD_H
 
-    // Base: fill the card area
-    let drawW, drawH
-    if (imgAspect > cardAspect) {
-      drawH = CARD_H
-      drawW = CARD_H * imgAspect
-    } else {
-      drawW = CARD_W
-      drawH = CARD_W / imgAspect
-    }
-
-    // Apply scale
-    const s = scale / 100
-    drawW *= s
-    drawH *= s
-
-    // Center + offset
-    const dx = (CARD_W - drawW) / 2 + (posX / 100) * CARD_W
-    const dy = (CARD_H - drawH) / 2 + (posY / 100) * CARD_H
-
-    ctx.drawImage(img, dx, dy, drawW, drawH)
+    ctx.drawImage(img, x, y, drawW, drawH)
     const dataUrl = canvas.toDataURL('image/jpeg', 0.92)
     onApply(dataUrl)
   }
-
-  // Compute preview transform
-  const getPreviewStyle = () => {
-    if (!imgRef.current) return {}
-    const img = imgRef.current
-    const imgAspect = img.naturalWidth / img.naturalHeight
-    const cardAspect = ASPECT
-
-    let baseW, baseH
-    // Preview container is 252x352 scaled down to fit
-    const containerW = 200
-    const containerH = containerW / ASPECT
-
-    if (imgAspect > cardAspect) {
-      baseH = containerH
-      baseW = containerH * imgAspect
-    } else {
-      baseW = containerW
-      baseH = containerW / imgAspect
-    }
-
-    const s = scale / 100
-    const w = baseW * s
-    const h = baseH * s
-    const tx = (containerW - w) / 2 + (posX / 100) * containerW
-    const ty = (containerH - h) / 2 + (posY / 100) * containerH
-
-    return {
-      width: w,
-      height: h,
-      transform: `translate(${tx}px, ${ty}px)`,
-      position: 'absolute',
-      top: 0,
-      left: 0,
-    }
-  }
-
-  const previewContainerW = 200
-  const previewContainerH = previewContainerW / ASPECT
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onCancel}>
@@ -110,18 +52,23 @@ export default function CropModal({ src, onApply, onCancel }) {
         <div className="flex justify-center mb-4">
           <div
             className="relative rounded-xl overflow-hidden border-2 border-navy/15"
-            style={{ width: previewContainerW, height: previewContainerH }}
+            style={{ width: 200, aspectRatio: '63/88', background: '#ffffff' }}
           >
-            {imgLoaded && imgRef.current && (
+            {imgLoaded && (
               <img
                 src={src}
                 alt="preview"
-                style={getPreviewStyle()}
                 draggable={false}
+                className="absolute w-full h-full"
+                style={{
+                  objectFit: 'contain',
+                  transform: `scale(${imageScale / 100}) translate(${offsetX}%, ${offsetY}%)`,
+                  transformOrigin: 'center center',
+                }}
               />
             )}
             {!imgLoaded && (
-              <div className="w-full h-full flex items-center justify-center bg-navy/5">
+              <div className="absolute inset-0 flex items-center justify-center bg-navy/5">
                 <span className="text-navy/30 text-sm">読み込み中...</span>
               </div>
             )}
@@ -130,65 +77,43 @@ export default function CropModal({ src, onApply, onCancel }) {
 
         {/* Controls */}
         <div className="space-y-4">
-          {/* Scale */}
           <div>
             <label className="block text-sm font-bold text-navy mb-1.5">画像の大きさ</label>
             <div className="flex items-center gap-2">
               <span className="text-xs text-navy/40 shrink-0">🔍−</span>
-              <input
-                type="range"
-                min={50}
-                max={200}
-                value={scale}
-                onChange={(e) => setScale(Number(e.target.value))}
-                className="flex-1 h-1"
-                style={{ accentColor: '#0B1F5C' }}
-              />
+              <input type="range" min={50} max={200} value={imageScale}
+                onChange={(e) => setImageScale(Number(e.target.value))}
+                className="flex-1 h-1" style={{ accentColor: '#0B1F5C' }} />
               <span className="text-xs text-navy/40 shrink-0">🔍+</span>
-              <span className="text-xs font-bold text-navy w-10 text-right">{scale}%</span>
+              <span className="text-xs font-bold text-navy w-10 text-right">{imageScale}%</span>
             </div>
           </div>
 
-          {/* Position X */}
           <div>
             <label className="block text-sm font-bold text-navy mb-1.5">左右の位置</label>
             <div className="flex items-center gap-2">
               <span className="text-xs text-navy/40 shrink-0">←</span>
-              <input
-                type="range"
-                min={-50}
-                max={50}
-                value={posX}
-                onChange={(e) => setPosX(Number(e.target.value))}
-                className="flex-1 h-1"
-                style={{ accentColor: '#0B1F5C' }}
-              />
+              <input type="range" min={-50} max={50} value={offsetX}
+                onChange={(e) => setOffsetX(Number(e.target.value))}
+                className="flex-1 h-1" style={{ accentColor: '#0B1F5C' }} />
               <span className="text-xs text-navy/40 shrink-0">→</span>
-              <span className="text-xs font-bold text-navy w-10 text-right">{posX > 0 ? '+' : ''}{posX}</span>
+              <span className="text-xs font-bold text-navy w-10 text-right">{offsetX > 0 ? '+' : ''}{offsetX}</span>
             </div>
           </div>
 
-          {/* Position Y */}
           <div>
             <label className="block text-sm font-bold text-navy mb-1.5">上下の位置</label>
             <div className="flex items-center gap-2">
               <span className="text-xs text-navy/40 shrink-0">↑</span>
-              <input
-                type="range"
-                min={-50}
-                max={50}
-                value={posY}
-                onChange={(e) => setPosY(Number(e.target.value))}
-                className="flex-1 h-1"
-                style={{ accentColor: '#0B1F5C' }}
-              />
+              <input type="range" min={-50} max={50} value={offsetY}
+                onChange={(e) => setOffsetY(Number(e.target.value))}
+                className="flex-1 h-1" style={{ accentColor: '#0B1F5C' }} />
               <span className="text-xs text-navy/40 shrink-0">↓</span>
-              <span className="text-xs font-bold text-navy w-10 text-right">{posY > 0 ? '+' : ''}{posY}</span>
+              <span className="text-xs font-bold text-navy w-10 text-right">{offsetY > 0 ? '+' : ''}{offsetY}</span>
             </div>
           </div>
         </div>
 
-        {/* Buttons */}
         <div className="mt-5 flex gap-2">
           <button type="button" onClick={onCancel}
             className="flex-1 rounded-full border-2 border-navy/15 text-navy font-bold py-2.5 text-sm hover:bg-navy/5 transition-colors cursor-pointer">
