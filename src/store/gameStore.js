@@ -9,6 +9,7 @@ const DEFAULT_DESIGN = {
   bottom_text: '',
   font_size: 'M',
   layout: 'title-top',
+  image_url: '',
 }
 
 export const useGameStore = create((set) => ({
@@ -26,6 +27,7 @@ export const useGameStore = create((set) => ({
     size: 'poker',
     surface: 'none',
     sets: 1,
+    back_design: { style: 'simple', color: '#0B1F5C' },
   },
   rulebook: {
     include: true,
@@ -58,7 +60,7 @@ export const useGameStore = create((set) => ({
     template: '',
     rules: { players: 4, duration: '15-30', objective: '', template_answers: {} },
     cards: [],
-    cardSpec: { size: 'poker', surface: 'none', sets: 1 },
+    cardSpec: { size: 'poker', surface: 'none', sets: 1, back_design: { style: 'simple', color: '#0B1F5C' } },
     rulebook: { include: true, pages: 4 },
   }),
 }))

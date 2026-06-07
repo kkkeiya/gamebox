@@ -30,7 +30,7 @@ export default function ExportPage() {
   const handleDownloadPdf = async () => {
     setPdfLoading(true)
     try {
-      await generateCardPdf(store.cards, store.cardSpec.size)
+      await generateCardPdf(store.cards, store.cardSpec.size, `${store.gameTitle || 'gamebox'}_cards.pdf`, store.cardSpec.back_design)
     } catch (err) { console.error('PDF generation failed:', err) }
     finally { setPdfLoading(false) }
   }
