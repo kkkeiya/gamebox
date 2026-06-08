@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../store/gameStore'
 import { exportGameData } from '../lib/exportJson'
 import { generateCardPdf } from '../lib/generatePdf'
+import { generateRulebook } from '../lib/generateRulebook'
 import PageShell from '../components/layout/PageShell'
 import Button from '../components/ui/Button'
 
@@ -13,6 +14,8 @@ export default function ExportPage() {
   const jsonString = JSON.stringify(data, null, 2)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [pdfError, setPdfError] = useState(null)
+  const [rbLoading, setRbLoading] = useState(false)
+  const [rbError, setRbError] = useState(null)
   const [filter, setFilter] = useState('all')
 
   const cardTypes = useMemo(() => ['all', ...new Set(store.cards.map((c) => c.name))], [store.cards])
@@ -37,6 +40,17 @@ export default function ExportPage() {
       console.error('PDF generation failed:', err)
       setPdfError('PDFの生成に失敗しました。カードにデザインが設定されているか確認してください。')
     } finally { setPdfLoading(false) }
+  }
+
+  const handleDownloadRulebook = async () => {
+    setRbLoading(true)
+    setRbError(null)
+    try {
+      await generateRulebook(store)
+    } catch (err) {
+      console.error('Rulebook generation failed:', err)
+      setRbError('ルールブックの生成に失敗しました。')
+    } finally { setRbLoading(false) }
   }
 
   const handleReset = () => { store.resetAll(); navigate('/') }
@@ -95,6 +109,14 @@ export default function ExportPage() {
         </Button>
       </div>
       {pdfError && <p className="text-red-500 text-sm mt-2">{pdfError}</p>}
+
+      <div className="mt-3">
+        <button type="button" onClick={handleDownloadRulebook} disabled={rbLoading}
+          className="w-full rounded-full bg-navy text-white font-bold py-3.5 text-base hover:bg-navy/90 transition-colors cursor-pointer disabled:opacity-50">
+          {rbLoading ? '生成中...' : '📖 ルールブックをダウンロード'}
+        </button>
+        {rbError && <p className="text-red-500 text-sm mt-2">{rbError}</p>}
+      </div>
 
       <button type="button" onClick={handleReset}
         className="mt-4 w-full rounded-full border-2 border-navy/15 text-navy font-bold py-3.5 text-base hover:bg-navy/5 transition-colors cursor-pointer">

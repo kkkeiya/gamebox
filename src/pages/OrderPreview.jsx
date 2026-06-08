@@ -61,15 +61,23 @@ export default function OrderPreview() {
 
       {/* ─── Options ─── */}
       <div className="mt-6 space-y-3">
-        <Card className="flex items-center justify-between px-5 py-3.5">
-          <div>
-            <span className="text-sm font-bold text-navy">ルールブックを含める</span>
-            <span className="block text-xs text-navy/40 mt-0.5">A5・4ページ想定 +¥5,000</span>
+        <Card className="px-5 py-3.5">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-sm font-bold text-navy">ルールブックを含める</span>
+              <span className="block text-xs text-navy/40 mt-0.5">A4・4つ折り8面 +¥5,000</span>
+            </div>
+            <button type="button" onClick={() => setRulebook({ include: !rulebook.include })}
+              className={`w-12 h-7 rounded-full transition-colors relative cursor-pointer ${rulebook.include ? 'bg-accent' : 'bg-navy/20'}`}>
+              <span className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${rulebook.include ? 'left-5.5' : 'left-0.5'}`} />
+            </button>
           </div>
-          <button type="button" onClick={() => setRulebook({ include: !rulebook.include })}
-            className={`w-12 h-7 rounded-full transition-colors relative cursor-pointer ${rulebook.include ? 'bg-accent' : 'bg-navy/20'}`}>
-            <span className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${rulebook.include ? 'left-5.5' : 'left-0.5'}`} />
-          </button>
+          {rulebook.include && (
+            <button type="button" onClick={() => navigate('/export')}
+              className="mt-3 w-full text-xs font-bold text-navy bg-navy/5 px-3 py-2 rounded-full hover:bg-navy/10 cursor-pointer transition-colors text-center">
+              📖 ルールブックプレビュー →
+            </button>
+          )}
         </Card>
 
         <Card className="flex items-center justify-between px-5 py-3.5">
