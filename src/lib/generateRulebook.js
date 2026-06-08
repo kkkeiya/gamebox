@@ -125,8 +125,12 @@ function renderFace1(doc, fx, fy, rules, genre) {
   const emoji = genre === 'coop' ? '🤝' : '🎭'
   drawEmoji(doc, emoji, fx + FACE_W / 2, fy + 30, 20)
 
-  drawText(doc, rules.gameTitle || 'タイトル未設定', fx + M, fy + 45, {
-    fontSize: 14, fontWeight: 'bold', color: '#FFFFFF',
+  const title = rules.gameTitle || 'タイトル未設定'
+  const titleFontSize = title.length <= 8 ? 14
+    : title.length <= 12 ? 11
+    : title.length <= 16 ? 9 : 7
+  drawText(doc, title, fx + M, fy + 50, {
+    fontSize: titleFontSize, fontWeight: 'bold', color: '#FFFFFF',
     maxWidthMm: FACE_W - M * 2, align: 'center',
   })
 
@@ -451,11 +455,9 @@ function drawFoldGuides(doc) {
   doc.line(0, 105, 297, 105)
   doc.setLineDashPattern([], 0)
 
-  // Note text (using jsPDF built-in for tiny label)
-  doc.setFontSize(6)
-  doc.setTextColor(180, 180, 180)
-  doc.text('※点線で折ってください（巻き折り4つ折り）', 293, 5, { align: 'right' })
-  doc.setTextColor(0, 0, 0)
+  drawText(doc, '※ 点線で折ってください（巻き折り4つ折り）', 297 - 70, 1.5, {
+    fontSize: 5, color: '#AAAAAA', maxWidthMm: 68, align: 'right',
+  })
 }
 
 // ─── Main Export ───
