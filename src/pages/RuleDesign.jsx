@@ -86,10 +86,12 @@ function FeedbackPanel({ feedback, loading, error }) {
   }
 
   if (error) {
+    const isParseError = error.includes('parse_failed')
     return (
       <div className="p-4 bg-red-50 rounded-xl">
-        <p className="text-sm text-red-600 font-bold">エラーが発生しました</p>
-        <p className="text-xs text-red-500 mt-1">{error}</p>
+        <p className="text-sm text-red-600 font-bold">
+          {isParseError ? 'フィードバックの取得に失敗しました。もう一度お試しください。' : error}
+        </p>
       </div>
     )
   }
@@ -111,7 +113,8 @@ function FeedbackPanel({ feedback, loading, error }) {
     <div className="space-y-4 text-sm">
       {/* Overall */}
       {feedback.overall && (
-        <div className="bg-blue-50 rounded-xl p-4">
+        <div className="bg-blue-50 rounded-xl p-4 flex items-start gap-2">
+          <span className="shrink-0">💬</span>
           <p className="text-navy leading-relaxed">{feedback.overall}</p>
         </div>
       )}
@@ -121,20 +124,15 @@ function FeedbackPanel({ feedback, loading, error }) {
         <div className="space-y-2">
           <h4 className="text-xs font-black text-navy/40 uppercase tracking-widest">指摘事項</h4>
           {feedback.issues.map((issue, i) => {
-            const borderColor = issue.type === 'error' ? 'border-red-300 bg-red-50' : issue.type === 'warning' ? 'border-yellow-300 bg-yellow-50' : 'border-blue-300 bg-blue-50'
-            const icon = issue.type === 'error' ? '🔴' : issue.type === 'warning' ? '🟡' : '🔵'
+            const borderClass = issue.type === 'error' ? 'border-l-red-400' : issue.type === 'warning' ? 'border-l-yellow-400' : 'border-l-blue-400'
+            const icon = issue.type === 'error' ? '🔴' : issue.type === 'warning' ? '🟡' : '💡'
             return (
-              <div key={i} className={`border-2 rounded-xl p-3 ${borderColor}`}>
-                <div className="flex items-start gap-2">
-                  <span className="text-xs mt-0.5">{icon}</span>
-                  <div>
-                    <p className="font-bold text-navy">{issue.title}</p>
-                    <p className="text-navy/70 mt-0.5">{issue.description}</p>
-                    {issue.suggestion && (
-                      <p className="text-navy/50 mt-1 italic text-xs">改善案：{issue.suggestion}</p>
-                    )}
-                  </div>
-                </div>
+              <div key={i} className={`border-l-4 ${borderClass} bg-white rounded-lg p-3 pl-4`}>
+                <p className="font-bold text-navy flex items-center gap-1.5">
+                  <span className="text-xs">{icon}</span>
+                  {issue.title}
+                </p>
+                {issue.fix && <p className="text-sm text-gray-600 mt-1">{issue.fix}</p>}
               </div>
             )
           })}
@@ -143,10 +141,10 @@ function FeedbackPanel({ feedback, loading, error }) {
 
       {/* Strengths */}
       {feedback.strengths?.length > 0 && (
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <h4 className="text-xs font-black text-navy/40 uppercase tracking-widest">良い点</h4>
-          {feedback.strengths.map((s, i) => (
-            <p key={i} className="text-green-700 flex items-start gap-1.5">
+          {feedback.strengths.slice(0, 2).map((s, i) => (
+            <p key={i} className="text-green-600 flex items-start gap-1.5">
               <span className="shrink-0">✅</span>
               <span>{s}</span>
             </p>
@@ -156,10 +154,10 @@ function FeedbackPanel({ feedback, loading, error }) {
 
       {/* Missing */}
       {feedback.missing?.length > 0 && (
-        <div className="space-y-1">
-          <h4 className="text-xs font-black text-navy/40 uppercase tracking-widest">未記入の項目</h4>
-          {feedback.missing.map((m, i) => (
-            <p key={i} className="text-amber-700 flex items-start gap-1.5">
+        <div className="space-y-1.5">
+          <h4 className="text-xs font-black text-navy/40 uppercase tracking-widest">まだ書けていない項目</h4>
+          {feedback.missing.slice(0, 3).map((m, i) => (
+            <p key={i} className="text-sm text-gray-500 flex items-start gap-1.5">
               <span className="shrink-0">⚠️</span>
               <span>{m}</span>
             </p>

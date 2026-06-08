@@ -23,12 +23,12 @@ function formatSpecialRules(specialRules) {
 }
 
 function buildPrompt(rules) {
-  return `あなたはボードゲームのルールデザインの専門家です。
-以下のボードゲームのルールを読んで、フィードバックをしてください。
+  return `あなたはボードゲームのルール専門家です。
+以下のルールを読んで、簡潔にフィードバックしてください。
 
 ゲーム名：${rules.gameTitle || '未設定'}
-プレイ人数：${rules.players?.min || '?'}〜${rules.players?.max || '?'}人
-プレイ時間：${rules.duration || '未設定'}
+人数：${rules.players?.min}〜${rules.players?.max}人
+時間：${rules.duration || '未設定'}
 テーマ：${rules.theme || '未設定'}
 
 【勝利条件】
@@ -40,27 +40,22 @@ ${formatPhases(rules.phases)}
 【特殊ルール】
 ${formatSpecialRules(rules.specialRules)}
 
-以下の観点でフィードバックしてください。
-必ずJSON形式で返してください。他のテキストは不要です。
+以下のJSON形式のみで返してください。説明文は不要です。
 
 {
-  "overall": "全体的な印象を2〜3文で（ポジティブな点から始める）",
+  "overall": "全体評価を1文で",
   "issues": [
     {
       "type": "error|warning|suggestion",
-      "title": "問題のタイトル",
-      "description": "具体的な説明",
-      "suggestion": "改善案"
+      "title": "10文字以内のタイトル",
+      "fix": "改善策を1文で"
     }
   ],
-  "strengths": ["良い点1", "良い点2"],
-  "missing": ["未記入で必要な項目1", "未記入で必要な項目2"]
+  "strengths": ["良い点を1文で（最大2つ）"],
+  "missing": ["不足している要素（最大3つ）"]
 }
 
-typeの意味：
-- error: ゲームが成立しない致命的な問題
-- warning: プレイヤーが混乱しそうな曖昧な点
-- suggestion: あると面白くなる改善提案`
+issuesは最大5件。最も重要な問題だけ挙げてください。`
 }
 
 export async function checkRules(rulesData) {
@@ -81,7 +76,7 @@ export async function checkRules(rulesData) {
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
-      max_tokens: 1500,
+      max_tokens: 600,
       messages: [{ role: 'user', content: prompt }],
     }),
   })
@@ -101,11 +96,6 @@ export async function checkRules(rulesData) {
   try {
     return JSON.parse(jsonStr)
   } catch {
-    return {
-      overall: text,
-      issues: [],
-      strengths: [],
-      missing: [],
-    }
+    throw new Error('parse_failed')
   }
 }
