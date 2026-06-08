@@ -8,6 +8,7 @@ import { CSS } from '@dnd-kit/utilities'
 import PageShell from '../components/layout/PageShell'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
+import MarkdownField from '../components/ui/MarkdownField'
 
 /* ───── Templates ───── */
 const TEMPLATES = [
@@ -37,9 +38,8 @@ function SortablePhase({ phase, index, onChange, onRemove }) {
           placeholder="例：準備フェーズ" className="flex-1 text-sm font-bold text-navy bg-transparent outline-none placeholder:text-navy/25" />
         <button type="button" onClick={onRemove} className="text-red-400 hover:text-red-600 text-xs font-bold cursor-pointer shrink-0">削除</button>
       </div>
-      <textarea value={phase.content} onChange={(e) => onChange({ ...phase, content: e.target.value })}
-        placeholder="例：各プレイヤーにカードを3枚配る" rows={2}
-        className="w-full text-sm text-navy bg-navy/3 rounded-lg px-3 py-2 outline-none placeholder:text-navy/25 resize-none" />
+      <MarkdownField value={phase.content} onChange={(v) => onChange({ ...phase, content: v })}
+        placeholder="例：各プレイヤーにカードを3枚配る" minHeight={80} />
       <input type="text" value={phase.endCondition} onChange={(e) => onChange({ ...phase, endCondition: e.target.value })}
         placeholder="終了条件（任意）：例：全員がカードを受け取ったら次のフェーズへ"
         className="w-full text-xs text-navy/70 bg-navy/3 rounded-lg px-3 py-2 outline-none placeholder:text-navy/25" />
@@ -175,9 +175,8 @@ function CustomSectionContent({ section, rules, setRules }) {
   }
 
   return (
-    <textarea value={data.text || ''} onChange={(e) => updateData({ text: e.target.value })}
-      placeholder="自由に記述してください" rows={4}
-      className="w-full text-sm text-navy bg-navy/3 rounded-lg px-3 py-2 outline-none placeholder:text-navy/25 resize-none" />
+    <MarkdownField value={data.text || ''} onChange={(v) => updateData({ text: v })}
+      placeholder="自由に記述してください" />
   )
 }
 
@@ -447,9 +446,8 @@ export default function RuleDesign() {
             </div>
             <div>
               <label className="block text-xs font-bold text-navy/60 mb-1">ゲームの雰囲気・テーマ</label>
-              <textarea value={rules.theme || ''} onChange={(e) => setRules({ theme: e.target.value })}
-                placeholder="例：プレイヤーそれぞれが秘密を抱えながら会話を楽しむゲーム" rows={2}
-                className={`${inputClass} resize-none`} />
+              <MarkdownField value={rules.theme || ''} onChange={(v) => setRules({ theme: v })}
+                placeholder="例：プレイヤーそれぞれが秘密を抱えながら会話を楽しむゲーム" />
             </div>
           </>
         )
@@ -469,9 +467,8 @@ export default function RuleDesign() {
                         className="text-red-400 hover:text-red-600 text-xs font-bold cursor-pointer">削除</button>
                     )}
                   </div>
-                  <textarea value={f.winCondition} onChange={(e) => updateFaction(i, { winCondition: e.target.value })}
-                    placeholder="勝利条件（例：ゲーム終了時に最も多くのポイントを持っているチームが勝利）" rows={2}
-                    className="w-full text-sm text-navy bg-white rounded-lg px-3 py-2 outline-none placeholder:text-navy/25 resize-none border border-navy/10" />
+                  <MarkdownField value={f.winCondition} onChange={(v) => updateFaction(i, { winCondition: v })}
+                    placeholder="勝利条件（例：ゲーム終了時に最も多くのポイントを持っているチームが勝利）" minHeight={80} />
                 </div>
               ))}
             </div>
@@ -518,9 +515,8 @@ export default function RuleDesign() {
                         className="text-red-400 hover:text-red-600 text-xs font-bold cursor-pointer">削除</button>
                     )}
                   </div>
-                  <textarea value={r.description} onChange={(e) => updateSpecialRule(i, { description: e.target.value })}
-                    placeholder="例：手札が0枚になったプレイヤーは次のターンをスキップする" rows={2}
-                    className="w-full text-sm text-navy bg-white rounded-lg px-3 py-2 outline-none placeholder:text-navy/25 resize-none border border-navy/10" />
+                  <MarkdownField value={r.description} onChange={(v) => updateSpecialRule(i, { description: v })}
+                    placeholder="例：手札が0枚になったプレイヤーは次のターンをスキップする" minHeight={80} />
                 </div>
               ))}
             </div>

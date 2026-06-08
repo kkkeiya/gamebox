@@ -151,6 +151,25 @@ export async function generateCardPdf(cards, size = 'poker', filename = 'gamebox
       isFirst = false
 
       const design = card.design || {}
+
+      // Fullimage layout: draw image at full card size, no text
+      if (design.layout === 'fullimage' && design.image_url) {
+        try {
+          doc.addImage(design.image_url, 'JPEG', 0, 0, cardW, cardH)
+        } catch {
+          // Fallback: white card with error text
+          doc.setFillColor(255, 255, 255)
+          doc.roundedRect(0, 0, cardW, cardH, 4, 4, 'F')
+        }
+
+        // Back page
+        if (backDesign) {
+          doc.addPage([cardW, cardH])
+          drawBackPage(doc, cardW, cardH, backDesign)
+        }
+        continue
+      }
+
       const bgColor = hexToRgb(design.bg_color || '#ffffff')
       const borderColor = hexToRgb(design.border_color || '#0B1F5C')
       const borderHex = design.border_color || '#0B1F5C'

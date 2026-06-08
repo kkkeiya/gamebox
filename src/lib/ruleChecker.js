@@ -1,8 +1,20 @@
+function stripMarkdown(text) {
+  if (!text) return ''
+  return text
+    .replace(/#{1,6}\s/g, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/^[-*+]\s/gm, '')
+    .replace(/^\d+\.\s/gm, '')
+    .replace(/\n{2,}/g, '\n')
+    .trim()
+}
+
 function formatFactions(factions) {
   if (!factions || factions.length === 0) return '未設定'
   return factions
     .filter((f) => f.name || f.winCondition)
-    .map((f) => `- ${f.name || '名前なし'}：${f.winCondition || '勝利条件なし'}`)
+    .map((f) => `- ${f.name || '名前なし'}：${stripMarkdown(f.winCondition) || '勝利条件なし'}`)
     .join('\n') || '未設定'
 }
 
@@ -10,7 +22,7 @@ function formatPhases(phases) {
   if (!phases || phases.length === 0) return '未設定'
   return phases
     .filter((p) => p.name || p.content)
-    .map((p, i) => `${i + 1}. ${p.name || '名前なし'}\n   内容：${p.content || '未記入'}\n   終了条件：${p.endCondition || 'なし'}`)
+    .map((p, i) => `${i + 1}. ${p.name || '名前なし'}\n   内容：${stripMarkdown(p.content) || '未記入'}\n   終了条件：${stripMarkdown(p.endCondition) || 'なし'}`)
     .join('\n') || '未設定'
 }
 
@@ -18,7 +30,7 @@ function formatSpecialRules(specialRules) {
   if (!specialRules || specialRules.length === 0) return 'なし'
   return specialRules
     .filter((r) => r.title || r.description)
-    .map((r) => `- ${r.title || 'タイトルなし'}：${r.description || '説明なし'}`)
+    .map((r) => `- ${r.title || 'タイトルなし'}：${stripMarkdown(r.description) || '説明なし'}`)
     .join('\n') || 'なし'
 }
 
