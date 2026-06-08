@@ -1,136 +1,285 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../store/gameStore'
+import { checkRules } from '../lib/ruleChecker'
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import PageShell from '../components/layout/PageShell'
 import Button from '../components/ui/Button'
+import Card from '../components/ui/Card'
 
 /* ───── Templates ───── */
 const TEMPLATES = [
   { key: 'werewolf', emoji: '🐺', name: '正体隠匿', desc: '役割カードで正体を隠しながら議論するゲーム' },
   { key: 'word', emoji: '💬', name: 'ワード系', desc: 'お題や言葉をヒントに正解を目指すゲーム' },
-  { key: 'coop', emoji: '🤝', name: '協力系', desc: '全員で協力してミッションをクリアするゲーム' },
-  { key: 'mystery', emoji: '🎯', name: '推理系', desc: '情報を集めて犯人や答えを当てるゲーム' },
-  { key: 'original', emoji: '✨', name: 'オリジナル', desc: 'テンプレートなしでゼロから設計する' },
+  { key: 'coop', emoji: '🤝', name: '協力ゲーム', desc: '全員で協力してミッションをクリアするゲーム' },
+  { key: 'mystery', emoji: '🔍', name: '推理ゲーム', desc: '証拠を集めて謎を解き明かすゲーム' },
+  { key: 'original', emoji: '✨', name: 'オリジナル', desc: 'テンプレートなしで自由に設計する' },
 ]
 
-const DURATION_OPTIONS = ['〜15分', '15〜30分', '30〜60分', '60分〜']
-const SPECIAL_ROLES = ['占師', '騎士', '霊媒師']
-const WORD_GENRES = ['食べ物', '場所', '動物', 'なんでも']
-const HINT_COUNTS = ['1回', '3回', '無制限']
-const DISCUSSION_TIMES = ['1分', '3分', '5分', '制限なし']
+const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
 
-/* ───── Per-template extra questions ───── */
-function getExtraQuestions(template, players) {
-  const maxVillains = Math.floor(players / 2)
-  switch (template) {
-    case 'werewolf': return [
-      { key: 'villains', label: `悪役（人狼側）は何人いますか？`, type: 'slider', min: 1, max: maxVillains },
-      { key: 'roles', label: '市民側にどんな特殊役職を入れますか？', type: 'checkbox', options: SPECIAL_ROLES },
-      { key: 'discussion', label: '昼の議論時間は？', type: 'select', options: DISCUSSION_TIMES },
-    ]
-    case 'word': return [
-      { key: 'wordGenre', label: 'お題はどんなジャンルにしますか？', type: 'select', options: WORD_GENRES },
-      { key: 'hints', label: 'ヒントは何回まで出せますか？', type: 'select', options: HINT_COUNTS },
-    ]
-    case 'coop': return [
-      { key: 'clearCondition', label: 'クリア条件は何ですか？', type: 'text' },
-      { key: 'failCondition', label: '失敗条件は何ですか？', type: 'text' },
-    ]
-    default: return []
-  }
+/* ───── Sortable Phase Item ───── */
+function SortablePhase({ phase, index, onChange, onRemove }) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: phase.id })
+  const style = { transform: CSS.Transform.toString(transform), transition }
+
+  return (
+    <div ref={setNodeRef} style={style} className="bg-white border-2 border-navy/10 rounded-xl p-3 space-y-2">
+      <div className="flex items-center gap-2">
+        <button type="button" {...attributes} {...listeners}
+          className="cursor-grab active:cursor-grabbing text-navy/30 hover:text-navy/60 shrink-0 touch-none">
+          ⠿
+        </button>
+        <span className="text-xs font-bold text-navy/40 shrink-0">#{index + 1}</span>
+        <input type="text" value={phase.name} onChange={(e) => onChange({ ...phase, name: e.target.value })}
+          placeholder="例：夜のフェーズ" className="flex-1 text-sm font-bold text-navy bg-transparent outline-none placeholder:text-navy/25" />
+        <button type="button" onClick={onRemove} className="text-red-400 hover:text-red-600 text-xs font-bold cursor-pointer shrink-0">削除</button>
+      </div>
+      <textarea value={phase.content} onChange={(e) => onChange({ ...phase, content: e.target.value })}
+        placeholder="例：人狼プレイヤーは目を開けて、処刑する村人を1人指定する" rows={2}
+        className="w-full text-sm text-navy bg-navy/3 rounded-lg px-3 py-2 outline-none placeholder:text-navy/25 resize-none" />
+      <input type="text" value={phase.endCondition} onChange={(e) => onChange({ ...phase, endCondition: e.target.value })}
+        placeholder="終了条件（任意）：例：人狼が合意したら終了"
+        className="w-full text-xs text-navy/70 bg-navy/3 rounded-lg px-3 py-2 outline-none placeholder:text-navy/25" />
+    </div>
+  )
 }
 
-const inputClass = 'w-full rounded-xl border-2 border-blue-200 bg-white px-4 py-3 text-navy placeholder:text-navy/30 focus:outline-none focus:border-navy transition-colors text-base'
+/* ───── Accordion Section ───── */
+function Section({ title, icon, open, onToggle, completed, onComplete, children }) {
+  return (
+    <div className={`border-2 rounded-2xl overflow-hidden transition-colors ${completed ? 'border-green-300 bg-green-50/30' : 'border-navy/10 bg-white'}`}>
+      <button type="button" onClick={onToggle}
+        className="w-full flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-navy/3 transition-colors">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">{icon}</span>
+          <span className={`text-sm font-black ${completed ? 'text-green-700' : 'text-navy'}`}>{title}</span>
+          {completed && <span className="text-green-600 text-xs font-bold">✓ 記入済み</span>}
+        </div>
+        <span className={`text-navy/30 text-sm transition-transform ${open ? 'rotate-180' : ''}`}>▼</span>
+      </button>
+      {open && (
+        <div className="px-5 pb-5 space-y-3">
+          {children}
+          <label className="flex items-center gap-2 mt-3 cursor-pointer">
+            <input type="checkbox" checked={completed} onChange={onComplete}
+              className="w-4 h-4 rounded accent-green-600" />
+            <span className="text-xs font-bold text-navy/50">このセクションを記入済みにする</span>
+          </label>
+        </div>
+      )}
+    </div>
+  )
+}
 
+/* ───── AI Feedback Panel ───── */
+function FeedbackPanel({ feedback, loading, error }) {
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <div className="w-8 h-8 border-3 border-navy/20 border-t-navy rounded-full animate-spin mb-4" />
+        <p className="text-sm font-bold text-navy/50">ルールを読み込んでいます...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 bg-red-50 rounded-xl">
+        <p className="text-sm text-red-600 font-bold">エラーが発生しました</p>
+        <p className="text-xs text-red-500 mt-1">{error}</p>
+      </div>
+    )
+  }
+
+  if (!feedback) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center px-6">
+        <span className="text-4xl mb-4">🤖</span>
+        <p className="text-sm text-navy/50 leading-relaxed">
+          ルールを書き終えたら<br />
+          「AIにチェックしてもらう」を押してください。<br />
+          <span className="text-navy/30 text-xs mt-2 block">矛盾や抜け穴、わかりにくい点をフィードバックします。</span>
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4 text-sm">
+      {/* Overall */}
+      {feedback.overall && (
+        <div className="bg-blue-50 rounded-xl p-4">
+          <p className="text-navy leading-relaxed">{feedback.overall}</p>
+        </div>
+      )}
+
+      {/* Issues */}
+      {feedback.issues?.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="text-xs font-black text-navy/40 uppercase tracking-widest">指摘事項</h4>
+          {feedback.issues.map((issue, i) => {
+            const borderColor = issue.type === 'error' ? 'border-red-300 bg-red-50' : issue.type === 'warning' ? 'border-yellow-300 bg-yellow-50' : 'border-blue-300 bg-blue-50'
+            const icon = issue.type === 'error' ? '🔴' : issue.type === 'warning' ? '🟡' : '🔵'
+            return (
+              <div key={i} className={`border-2 rounded-xl p-3 ${borderColor}`}>
+                <div className="flex items-start gap-2">
+                  <span className="text-xs mt-0.5">{icon}</span>
+                  <div>
+                    <p className="font-bold text-navy">{issue.title}</p>
+                    <p className="text-navy/70 mt-0.5">{issue.description}</p>
+                    {issue.suggestion && (
+                      <p className="text-navy/50 mt-1 italic text-xs">改善案：{issue.suggestion}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Strengths */}
+      {feedback.strengths?.length > 0 && (
+        <div className="space-y-1">
+          <h4 className="text-xs font-black text-navy/40 uppercase tracking-widest">良い点</h4>
+          {feedback.strengths.map((s, i) => (
+            <p key={i} className="text-green-700 flex items-start gap-1.5">
+              <span className="shrink-0">✅</span>
+              <span>{s}</span>
+            </p>
+          ))}
+        </div>
+      )}
+
+      {/* Missing */}
+      {feedback.missing?.length > 0 && (
+        <div className="space-y-1">
+          <h4 className="text-xs font-black text-navy/40 uppercase tracking-widest">未記入の項目</h4>
+          {feedback.missing.map((m, i) => (
+            <p key={i} className="text-amber-700 flex items-start gap-1.5">
+              <span className="shrink-0">⚠️</span>
+              <span>{m}</span>
+            </p>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ───── Main Page ───── */
 export default function RuleDesign() {
   const navigate = useNavigate()
-  const store = useGameStore()
-  const [step, setStep] = useState('template') // 'template' | 'questions'
-  const [selectedTemplate, setSelectedTemplate] = useState(store.template || '')
-  const [qIndex, setQIndex] = useState(0)
+  const { template, rules, setTemplate, setRules, setGameTitle } = useGameStore()
+  const [phase, setPhase] = useState(template ? 'editor' : 'template')
+  const [openSections, setOpenSections] = useState([1, 2, 3, 4])
+  const [feedback, setFeedback] = useState(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState(null)
 
-  // Question answers (local state, flushed on completion)
-  const [title, setTitle] = useState(store.gameTitle)
-  const [players, setPlayers] = useState(store.rules.players || 4)
-  const [duration, setDuration] = useState(store.rules.duration || '15〜30分')
-  const [objective, setObjective] = useState(store.rules.objective || '')
-  const [extraAnswers, setExtraAnswers] = useState(store.rules.template_answers || {})
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
 
-  const extraQs = getExtraQuestions(selectedTemplate, players)
-  const allQuestions = [
-    { key: 'title', label: 'ゲームのタイトルを教えてください', type: 'text' },
-    { key: 'players', label: '何人で遊びますか？', type: 'slider', min: 2, max: 10 },
-    { key: 'duration', label: '1回のプレイ時間は？', type: 'select', options: DURATION_OPTIONS },
-    { key: 'objective', label: 'ゲームの目的は？', type: 'text', placeholder: '例：〇〇を最初に達成した人が勝ち' },
-    ...extraQs,
-  ]
-  const currentQ = allQuestions[qIndex]
-  const totalQs = allQuestions.length
+  const inputClass = 'w-full rounded-xl border-2 border-blue-200 bg-white px-4 py-3 text-sm text-navy placeholder:text-navy/30 focus:outline-none focus:border-navy transition-colors'
 
-  const handleTemplateSelect = (key) => {
-    setSelectedTemplate(key)
-    setStep('questions')
-    setQIndex(0)
+  const toggleSection = (n) => {
+    setOpenSections((s) => s.includes(n) ? s.filter((x) => x !== n) : [...s, n])
   }
 
-  const getAnswer = () => {
-    switch (currentQ?.key) {
-      case 'title': return title
-      case 'players': return players
-      case 'duration': return duration
-      case 'objective': return objective
-      default: return extraAnswers[currentQ?.key] ?? ''
+  const isCompleted = (n) => (rules.completedSections || []).includes(n)
+  const toggleCompleted = (n) => {
+    const current = rules.completedSections || []
+    const next = current.includes(n) ? current.filter((x) => x !== n) : [...current, n]
+    setRules({ completedSections: next })
+  }
+
+  // Faction helpers
+  const updateFaction = (index, data) => {
+    const factions = [...(rules.factions || [])]
+    factions[index] = { ...factions[index], ...data }
+    setRules({ factions })
+  }
+  const addFaction = () => {
+    setRules({ factions: [...(rules.factions || []), { id: uid(), name: '', winCondition: '' }] })
+  }
+  const removeFaction = (index) => {
+    setRules({ factions: (rules.factions || []).filter((_, i) => i !== index) })
+  }
+
+  // Phase helpers
+  const updatePhase = (index, data) => {
+    const phases = [...(rules.phases || [])]
+    phases[index] = data
+    setRules({ phases })
+  }
+  const addPhase = () => {
+    setRules({ phases: [...(rules.phases || []), { id: uid(), name: '', content: '', endCondition: '' }] })
+  }
+  const removePhase = (index) => {
+    setRules({ phases: (rules.phases || []).filter((_, i) => i !== index) })
+  }
+  const handleDragEnd = (event) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const phases = rules.phases || []
+    const oldIndex = phases.findIndex((p) => p.id === active.id)
+    const newIndex = phases.findIndex((p) => p.id === over.id)
+    setRules({ phases: arrayMove(phases, oldIndex, newIndex) })
+  }
+
+  // Special rules helpers
+  const updateSpecialRule = (index, data) => {
+    const specialRules = [...(rules.specialRules || [])]
+    specialRules[index] = { ...specialRules[index], ...data }
+    setRules({ specialRules })
+  }
+  const addSpecialRule = () => {
+    setRules({ specialRules: [...(rules.specialRules || []), { id: uid(), title: '', description: '' }] })
+  }
+  const removeSpecialRule = (index) => {
+    setRules({ specialRules: (rules.specialRules || []).filter((_, i) => i !== index) })
+  }
+
+  // AI check
+  const handleAiCheck = useCallback(async () => {
+    setAiLoading(true)
+    setAiError(null)
+    setFeedback(null)
+    try {
+      const result = await checkRules(rules)
+      setFeedback(result)
+    } catch (err) {
+      setAiError(err.message)
+    } finally {
+      setAiLoading(false)
     }
-  }
-
-  const setAnswer = (val) => {
-    switch (currentQ?.key) {
-      case 'title': return setTitle(val)
-      case 'players': return setPlayers(val)
-      case 'duration': return setDuration(val)
-      case 'objective': return setObjective(val)
-      default: return setExtraAnswers((p) => ({ ...p, [currentQ.key]: val }))
-    }
-  }
+  }, [rules])
 
   const handleNext = () => {
-    if (qIndex < totalQs - 1) {
-      setQIndex(qIndex + 1)
-    } else {
-      // Save everything to store
-      store.setTemplate(selectedTemplate)
-      store.setGameTitle(title)
-      store.setRules({ players, duration, objective, template_answers: extraAnswers })
-      navigate('/cards')
-    }
+    setGameTitle(rules.gameTitle || '')
+    navigate('/cards')
   }
 
-  const handleBack = () => {
-    if (qIndex > 0) setQIndex(qIndex - 1)
-    else setStep('template')
-  }
-
-  /* ═══ Template Selection ═══ */
-  if (step === 'template') {
+  // ─── PHASE 1: Template Selection ───
+  if (phase === 'template') {
     return (
       <PageShell>
-        <h1 className="text-2xl md:text-3xl font-black text-navy">テンプレートを選ぶ</h1>
-        <p className="mt-1 text-navy/50 text-sm">作りたいゲームに近いテンプレートを選んでください</p>
+        <h1 className="text-2xl md:text-3xl font-black text-navy">ゲームのタイプを選択</h1>
+        <p className="mt-1 text-navy/50 text-sm">テンプレートを選ぶと初期構成が提案されます</p>
+
         <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
           {TEMPLATES.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => handleTemplateSelect(t.key)}
-              className={`text-left rounded-2xl p-5 transition-all duration-200 cursor-pointer ${
-                selectedTemplate === t.key
-                  ? 'border-[2.5px] border-navy bg-bg-alt'
-                  : 'border-[2.5px] border-step-border bg-white hover:border-navy/40'
-              }`}
-            >
+            <button key={t.key} type="button"
+              onClick={() => { setTemplate(t.key); setPhase('editor') }}
+              className="text-left rounded-2xl border-2 border-navy/10 bg-white p-5 hover:border-navy/30 hover:-translate-y-0.5 transition-all cursor-pointer">
               <span className="text-3xl">{t.emoji}</span>
-              <h3 className="mt-2 text-base font-black text-navy">{t.name}</h3>
-              <p className="mt-1 text-xs text-navy/50 leading-relaxed">{t.desc}</p>
+              <p className="mt-2 font-black text-navy text-sm">{t.name}</p>
+              <p className="text-xs text-navy/40 mt-0.5">{t.desc}</p>
             </button>
           ))}
         </div>
@@ -138,105 +287,157 @@ export default function RuleDesign() {
     )
   }
 
-  /* ═══ Question Wizard ═══ */
+  // ─── PHASE 2: Rule Editor ───
   return (
     <PageShell>
-      {/* Progress */}
-      <div className="flex items-center gap-2 text-xs font-bold text-navy/40 mb-2">
-        <span className="bg-accent text-navy px-2 py-0.5 rounded-full">{qIndex + 1} / {totalQs}</span>
-        <div className="flex-1 h-1.5 bg-navy/10 rounded-full overflow-hidden">
-          <div className="h-full bg-navy rounded-full transition-all duration-300" style={{ width: `${((qIndex + 1) / totalQs) * 100}%` }} />
+      <h1 className="text-2xl md:text-3xl font-black text-navy">ルール設計</h1>
+      <p className="mt-1 text-navy/50 text-sm">ゲームのルールを言語化しましょう</p>
+
+      <div className="mt-8 flex flex-col lg:flex-row gap-6">
+        {/* ─── Left Column: Rule Sections ─── */}
+        <div className="lg:w-[60%] space-y-4">
+
+          {/* Section 1: Basic Info */}
+          <Section title="ゲームの基本情報" icon="📋" open={openSections.includes(1)}
+            onToggle={() => toggleSection(1)} completed={isCompleted(1)} onComplete={() => toggleCompleted(1)}>
+            <div>
+              <label className="block text-xs font-bold text-navy/60 mb-1">ゲームタイトル</label>
+              <input type="text" value={rules.gameTitle || ''} onChange={(e) => setRules({ gameTitle: e.target.value })}
+                placeholder="例：深夜の人狼" className={`${inputClass} text-lg font-bold`} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-navy/60 mb-1">最少人数</label>
+                <input type="number" min={1} max={20} value={rules.players?.min || 2}
+                  onChange={(e) => setRules({ players: { ...rules.players, min: Number(e.target.value) } })}
+                  className={inputClass} />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-navy/60 mb-1">最大人数</label>
+                <input type="number" min={1} max={20} value={rules.players?.max || 6}
+                  onChange={(e) => setRules({ players: { ...rules.players, max: Number(e.target.value) } })}
+                  className={inputClass} />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-navy/60 mb-1">プレイ時間（目安）</label>
+              <input type="text" value={rules.duration || ''} onChange={(e) => setRules({ duration: e.target.value })}
+                placeholder="例：15〜30分" className={inputClass} />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-navy/60 mb-1">ゲームの雰囲気・テーマ</label>
+              <textarea value={rules.theme || ''} onChange={(e) => setRules({ theme: e.target.value })}
+                placeholder="例：友達を疑いながらも協力しなければならない緊張感" rows={2}
+                className={`${inputClass} resize-none`} />
+            </div>
+          </Section>
+
+          {/* Section 2: Factions / Win Conditions */}
+          <Section title="ゲームの目的" icon="🏆" open={openSections.includes(2)}
+            onToggle={() => toggleSection(2)} completed={isCompleted(2)} onComplete={() => toggleCompleted(2)}>
+            <p className="text-xs text-navy/40">各陣営の勝利条件を設定してください。</p>
+            <div className="space-y-2">
+              {(rules.factions || []).map((f, i) => (
+                <div key={f.id} className="bg-navy/3 rounded-xl p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input type="text" value={f.name} onChange={(e) => updateFaction(i, { name: e.target.value })}
+                      placeholder="陣営名（例：村人側）"
+                      className="flex-1 text-sm font-bold text-navy bg-transparent outline-none placeholder:text-navy/25" />
+                    {(rules.factions || []).length > 1 && (
+                      <button type="button" onClick={() => removeFaction(i)}
+                        className="text-red-400 hover:text-red-600 text-xs font-bold cursor-pointer">削除</button>
+                    )}
+                  </div>
+                  <textarea value={f.winCondition} onChange={(e) => updateFaction(i, { winCondition: e.target.value })}
+                    placeholder="勝利条件（例：人狼を全員処刑すれば村人の勝利）" rows={2}
+                    className="w-full text-sm text-navy bg-white rounded-lg px-3 py-2 outline-none placeholder:text-navy/25 resize-none border border-navy/10" />
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={addFaction}
+              className="text-xs font-bold text-navy/50 bg-navy/5 px-4 py-2 rounded-full hover:bg-navy/10 cursor-pointer transition-colors">
+              ＋ 陣営を追加
+            </button>
+          </Section>
+
+          {/* Section 3: Game Flow / Phases */}
+          <Section title="ゲームの流れ" icon="🔄" open={openSections.includes(3)}
+            onToggle={() => toggleSection(3)} completed={isCompleted(3)} onComplete={() => toggleCompleted(3)}>
+            <p className="text-xs text-navy/40">ターン・フェーズを順番に記述してください。ドラッグで並び替えできます。</p>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={(rules.phases || []).map((p) => p.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-2">
+                  {(rules.phases || []).map((p, i) => (
+                    <SortablePhase key={p.id} phase={p} index={i}
+                      onChange={(data) => updatePhase(i, data)}
+                      onRemove={() => removePhase(i)} />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+            <button type="button" onClick={addPhase}
+              className="text-xs font-bold text-navy/50 bg-navy/5 px-4 py-2 rounded-full hover:bg-navy/10 cursor-pointer transition-colors">
+              ＋ フェーズを追加
+            </button>
+          </Section>
+
+          {/* Section 4: Special Rules */}
+          <Section title="特殊ルール・例外" icon="⚡" open={openSections.includes(4)}
+            onToggle={() => toggleSection(4)} completed={isCompleted(4)} onComplete={() => toggleCompleted(4)}>
+            <p className="text-xs text-navy/40">特殊能力や例外ルールを追加できます。</p>
+            <div className="space-y-2">
+              {(rules.specialRules || []).map((r, i) => (
+                <div key={r.id} className="bg-navy/3 rounded-xl p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input type="text" value={r.title} onChange={(e) => updateSpecialRule(i, { title: e.target.value })}
+                      placeholder="ルール名（例：占師の能力）"
+                      className="flex-1 text-sm font-bold text-navy bg-transparent outline-none placeholder:text-navy/25" />
+                    {(rules.specialRules || []).length > 1 && (
+                      <button type="button" onClick={() => removeSpecialRule(i)}
+                        className="text-red-400 hover:text-red-600 text-xs font-bold cursor-pointer">削除</button>
+                    )}
+                  </div>
+                  <textarea value={r.description} onChange={(e) => updateSpecialRule(i, { description: e.target.value })}
+                    placeholder="例：占師は毎晩1人のプレイヤーの正体を知ることができる" rows={2}
+                    className="w-full text-sm text-navy bg-white rounded-lg px-3 py-2 outline-none placeholder:text-navy/25 resize-none border border-navy/10" />
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={addSpecialRule}
+              className="text-xs font-bold text-navy/50 bg-navy/5 px-4 py-2 rounded-full hover:bg-navy/10 cursor-pointer transition-colors">
+              ＋ ルールを追加
+            </button>
+          </Section>
+
+          {/* Action Buttons */}
+          <div className="space-y-3 pt-4">
+            <button type="button" onClick={handleAiCheck} disabled={aiLoading}
+              className="w-full rounded-full bg-accent text-navy font-black py-4 text-base hover:bg-accent/90 transition-colors cursor-pointer disabled:opacity-50">
+              {aiLoading ? 'チェック中...' : '🤖 AIにルールをチェックしてもらう'}
+            </button>
+            <Button onClick={handleNext} className="w-full">
+              次へ → カード構成
+            </Button>
+          </div>
         </div>
-      </div>
 
-      <h1 className="text-xl md:text-2xl font-black text-navy mt-6">{currentQ.label}</h1>
-
-      <div className="mt-8">
-        {currentQ.type === 'text' && (
-          <input
-            type="text"
-            value={getAnswer()}
-            onChange={(e) => setAnswer(e.target.value)}
-            placeholder={currentQ.placeholder || ''}
-            className={inputClass}
-            autoFocus
-          />
-        )}
-
-        {currentQ.type === 'slider' && (
-          <div>
-            <div className="text-center mb-4">
-              <span className="text-5xl font-black text-navy">{getAnswer()}</span>
-              <span className="text-lg text-navy/50 ml-1">人</span>
-            </div>
-            <input
-              type="range"
-              min={currentQ.min}
-              max={currentQ.max}
-              value={getAnswer()}
-              onChange={(e) => setAnswer(Number(e.target.value))}
-              className="w-full"
-            />
-            <div className="flex justify-between text-xs text-navy/40 mt-1">
-              <span>{currentQ.min}</span>
-              <span>{currentQ.max}</span>
-            </div>
+        {/* ─── Right Column: AI Feedback ─── */}
+        <div className="lg:w-[40%]">
+          <div className="lg:sticky lg:top-6">
+            <Card className="p-5 bg-navy/3 min-h-[300px]">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-xs font-black text-navy/40 uppercase tracking-widest">AIフィードバック</h2>
+                {feedback && (
+                  <button type="button" onClick={handleAiCheck} disabled={aiLoading}
+                    className="text-[10px] font-bold text-navy/50 bg-white px-3 py-1 rounded-full hover:bg-navy/10 cursor-pointer transition-colors border border-navy/10">
+                    もう一度チェック
+                  </button>
+                )}
+              </div>
+              <FeedbackPanel feedback={feedback} loading={aiLoading} error={aiError} />
+            </Card>
           </div>
-        )}
-
-        {currentQ.type === 'select' && (
-          <div className="grid grid-cols-2 gap-2">
-            {currentQ.options.map((opt) => (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => setAnswer(opt)}
-                className={`rounded-full py-3 text-sm font-bold transition-all cursor-pointer ${
-                  getAnswer() === opt
-                    ? 'bg-navy text-white'
-                    : 'bg-white border-2 border-step-border text-navy/60 hover:border-navy/30'
-                }`}
-              >
-                {opt}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {currentQ.type === 'checkbox' && (
-          <div className="grid grid-cols-2 gap-2">
-            {currentQ.options.map((opt) => {
-              const selected = Array.isArray(getAnswer()) ? getAnswer() : []
-              const isChecked = selected.includes(opt)
-              return (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => {
-                    const next = isChecked ? selected.filter((s) => s !== opt) : [...selected, opt]
-                    setAnswer(next)
-                  }}
-                  className={`rounded-full py-3 text-sm font-bold transition-all cursor-pointer ${
-                    isChecked
-                      ? 'bg-navy text-white'
-                      : 'bg-white border-2 border-step-border text-navy/60 hover:border-navy/30'
-                  }`}
-                >
-                  {isChecked ? '✓ ' : ''}{opt}
-                </button>
-              )
-            })}
-          </div>
-        )}
-      </div>
-
-      <div className="mt-10 flex flex-col gap-3">
-        <Button onClick={handleNext} className="w-full">
-          {qIndex < totalQs - 1 ? '次の質問へ' : 'カード構成へ進む →'}
-        </Button>
-        <button type="button" onClick={handleBack} className="text-sm text-navy/40 font-semibold hover:text-navy/60 transition-colors cursor-pointer">
-          ← 前に戻る
-        </button>
+        </div>
       </div>
     </PageShell>
   )

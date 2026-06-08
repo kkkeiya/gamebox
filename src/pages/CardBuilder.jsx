@@ -66,7 +66,8 @@ export default function CardBuilder() {
   // Auto-suggest cards from template on first visit
   useEffect(() => {
     if (cards.length === 0 && template && !suggested) {
-      const suggestions = getSuggestedCards(template, rules.players, rules.template_answers)
+      const players = typeof rules.players === 'number' ? rules.players : (rules.players?.max || 6)
+      const suggestions = getSuggestedCards(template, players, rules.template_answers)
       if (suggestions.length > 0) {
         suggestions.forEach((c) => addCard({ ...c, text: '' }))
         setSuggested(true)

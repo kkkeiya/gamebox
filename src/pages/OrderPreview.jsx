@@ -27,7 +27,7 @@ export default function OrderPreview() {
       <Card className="mt-8 divide-y divide-navy/10">
         <Row label="ゲームタイトル" value={gameTitle || '未設定'} />
         <Row label="ジャンル" value={GENRE_LABELS[genre] || genre} />
-        <Row label="プレイ人数" value={`${rules.players}人`} />
+        <Row label="プレイ人数" value={typeof rules.players === 'number' ? `${rules.players}人` : `${rules.players?.min || 2}〜${rules.players?.max || 6}人`} />
         <Row label="プレイ時間" value={rules.duration || '未設定'} />
         <Row label="カード種類" value={`${cards.length}種`} />
         <Row label="カード合計" value={`${pricing.totalCards}枚`} />
