@@ -12,6 +12,13 @@ const DEFAULT_DESIGN = {
   image_url: '',
 }
 
+const DEFAULT_SECTIONS = [
+  { id: 'basic', type: 'default', title: 'ゲームの基本情報', icon: '📋', deletable: false },
+  { id: 'factions', type: 'default', title: 'ゲームの目的', icon: '🎯', deletable: false },
+  { id: 'phases', type: 'default', title: 'ゲームの流れ', icon: '🔄', deletable: false },
+  { id: 'special', type: 'default', title: '特殊ルール・例外', icon: '⚡', deletable: false },
+]
+
 const DEFAULT_RULES = {
   gameTitle: '',
   players: { min: 2, max: 6 },
@@ -20,8 +27,9 @@ const DEFAULT_RULES = {
   factions: [{ id: 'f1', name: '', winCondition: '' }],
   phases: [{ id: 'p1', name: '', content: '', endCondition: '' }],
   specialRules: [{ id: 's1', title: '', description: '' }],
+  sections: [...DEFAULT_SECTIONS],
+  customSections: {},
   completedSections: [],
-  // Legacy fields for backward compatibility with CardBuilder templates
   template_answers: {},
 }
 
@@ -29,6 +37,7 @@ export const useGameStore = create((set) => ({
   genre: 'party',
   gameTitle: '',
   template: '',
+  currentProjectId: null,
   rules: { ...DEFAULT_RULES },
   cards: [],
   cardSpec: {
@@ -45,6 +54,7 @@ export const useGameStore = create((set) => ({
   setGenre: (genre) => set({ genre }),
   setGameTitle: (gameTitle) => set({ gameTitle }),
   setTemplate: (template) => set({ template }),
+  setCurrentProjectId: (id) => set({ currentProjectId: id }),
   setRules: (rules) => set((state) => ({ rules: { ...state.rules, ...rules } })),
   setCards: (cards) => set({ cards }),
   addCard: (card) => set((state) => ({
@@ -62,10 +72,21 @@ export const useGameStore = create((set) => ({
   })),
   setCardSpec: (cardSpec) => set((state) => ({ cardSpec: { ...state.cardSpec, ...cardSpec } })),
   setRulebook: (rulebook) => set((state) => ({ rulebook: { ...state.rulebook, ...rulebook } })),
+  loadProject: (project) => set({
+    currentProjectId: project.id,
+    genre: project.genre || 'party',
+    gameTitle: project.gameTitle || '',
+    template: project.template || '',
+    rules: { ...DEFAULT_RULES, ...(project.rules || {}) },
+    cards: project.cards || [],
+    cardSpec: project.cardSpec || { size: 'poker', surface: 'none', sets: 1, back_design: { style: 'simple', color: '#0B1F5C' } },
+    rulebook: project.rulebook || { include: true, pages: 4 },
+  }),
   resetAll: () => set({
     genre: 'party',
     gameTitle: '',
     template: '',
+    currentProjectId: null,
     rules: { ...DEFAULT_RULES },
     cards: [],
     cardSpec: { size: 'poker', surface: 'none', sets: 1, back_design: { style: 'simple', color: '#0B1F5C' } },

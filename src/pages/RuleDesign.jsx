@@ -34,32 +34,54 @@ function SortablePhase({ phase, index, onChange, onRemove }) {
         </button>
         <span className="text-xs font-bold text-navy/40 shrink-0">#{index + 1}</span>
         <input type="text" value={phase.name} onChange={(e) => onChange({ ...phase, name: e.target.value })}
-          placeholder="例：夜のフェーズ" className="flex-1 text-sm font-bold text-navy bg-transparent outline-none placeholder:text-navy/25" />
+          placeholder="例：準備フェーズ" className="flex-1 text-sm font-bold text-navy bg-transparent outline-none placeholder:text-navy/25" />
         <button type="button" onClick={onRemove} className="text-red-400 hover:text-red-600 text-xs font-bold cursor-pointer shrink-0">削除</button>
       </div>
       <textarea value={phase.content} onChange={(e) => onChange({ ...phase, content: e.target.value })}
-        placeholder="例：人狼プレイヤーは目を開けて、処刑する村人を1人指定する" rows={2}
+        placeholder="例：各プレイヤーにカードを3枚配る" rows={2}
         className="w-full text-sm text-navy bg-navy/3 rounded-lg px-3 py-2 outline-none placeholder:text-navy/25 resize-none" />
       <input type="text" value={phase.endCondition} onChange={(e) => onChange({ ...phase, endCondition: e.target.value })}
-        placeholder="終了条件（任意）：例：人狼が合意したら終了"
+        placeholder="終了条件（任意）：例：全員がカードを受け取ったら次のフェーズへ"
         className="w-full text-xs text-navy/70 bg-navy/3 rounded-lg px-3 py-2 outline-none placeholder:text-navy/25" />
     </div>
   )
 }
 
+/* ───── Sortable Section Wrapper ───── */
+function SortableSection({ section, children, onDelete }) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: section.id })
+  const style = { transform: CSS.Transform.toString(transform), transition }
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      {children({ dragHandleProps: { ...attributes, ...listeners }, onDelete: section.deletable ? onDelete : null })}
+    </div>
+  )
+}
+
 /* ───── Accordion Section ───── */
-function Section({ title, icon, open, onToggle, completed, onComplete, children }) {
+function Section({ title, icon, open, onToggle, completed, onComplete, dragHandleProps, onDelete, children }) {
   return (
     <div className={`border-2 rounded-2xl overflow-hidden transition-colors ${completed ? 'border-green-300 bg-green-50/30' : 'border-navy/10 bg-white'}`}>
-      <button type="button" onClick={onToggle}
-        className="w-full flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-navy/3 transition-colors">
-        <div className="flex items-center gap-2">
-          <span className="text-lg">{icon}</span>
-          <span className={`text-sm font-black ${completed ? 'text-green-700' : 'text-navy'}`}>{title}</span>
-          {completed && <span className="text-green-600 text-xs font-bold">✓ 記入済み</span>}
-        </div>
-        <span className={`text-navy/30 text-sm transition-transform ${open ? 'rotate-180' : ''}`}>▼</span>
-      </button>
+      <div className="flex items-center px-5 py-4">
+        <button type="button" {...dragHandleProps}
+          className="cursor-grab active:cursor-grabbing text-navy/30 hover:text-navy/60 mr-3 touch-none shrink-0">
+          ⠿
+        </button>
+        <button type="button" onClick={onToggle}
+          className="flex-1 flex items-center justify-between cursor-pointer">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">{icon}</span>
+            <span className={`text-sm font-black ${completed ? 'text-green-700' : 'text-navy'}`}>{title}</span>
+            {completed && <span className="text-green-600 text-xs font-bold">✓</span>}
+          </div>
+          <span className={`text-navy/30 text-sm transition-transform ${open ? 'rotate-180' : ''}`}>▼</span>
+        </button>
+        {onDelete && (
+          <button type="button" onClick={onDelete}
+            className="ml-2 text-xs text-gray-400 hover:text-red-500 font-bold cursor-pointer shrink-0">削除</button>
+        )}
+      </div>
       {open && (
         <div className="px-5 pb-5 space-y-3">
           {children}
@@ -71,6 +93,91 @@ function Section({ title, icon, open, onToggle, completed, onComplete, children 
         </div>
       )}
     </div>
+  )
+}
+
+/* ───── Add Section Modal ───── */
+function AddSectionModal({ onAdd, onCancel }) {
+  const [name, setName] = useState('')
+  const [sectionType, setSectionType] = useState('text')
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onCancel}>
+      <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full mx-4 p-5" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-sm font-black text-navy mb-4">セクションを追加</h3>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-bold text-navy/60 mb-1">セクション名</label>
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)}
+              placeholder="例：コンポーネント一覧"
+              className="w-full rounded-xl border-2 border-blue-200 bg-white px-4 py-3 text-sm text-navy placeholder:text-navy/30 focus:outline-none focus:border-navy transition-colors" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-navy/60 mb-2">タイプ</label>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setSectionType('text')}
+                className={`flex-1 rounded-full py-2.5 text-sm font-bold cursor-pointer transition-all ${sectionType === 'text' ? 'bg-navy text-white' : 'bg-white border-2 border-step-border text-navy/60'}`}>
+                📝 テキスト
+              </button>
+              <button type="button" onClick={() => setSectionType('list')}
+                className={`flex-1 rounded-full py-2.5 text-sm font-bold cursor-pointer transition-all ${sectionType === 'list' ? 'bg-navy text-white' : 'bg-white border-2 border-step-border text-navy/60'}`}>
+                📋 リスト
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="mt-5 flex gap-2">
+          <button type="button" onClick={onCancel}
+            className="flex-1 rounded-full border-2 border-navy/15 text-navy font-bold py-2.5 text-sm hover:bg-navy/5 transition-colors cursor-pointer">
+            キャンセル
+          </button>
+          <button type="button" onClick={() => { if (name.trim()) onAdd(name.trim(), sectionType) }}
+            disabled={!name.trim()}
+            className="flex-1 rounded-full bg-navy text-white font-bold py-2.5 text-sm hover:bg-navy/90 transition-colors cursor-pointer disabled:opacity-40">
+            追加する
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ───── Custom Section Content ───── */
+function CustomSectionContent({ section, rules, setRules }) {
+  const data = rules.customSections?.[section.id] || (section.sectionType === 'list' ? { items: [] } : { text: '' })
+
+  const updateData = (newData) => {
+    setRules({ customSections: { ...(rules.customSections || {}), [section.id]: newData } })
+  }
+
+  if (section.sectionType === 'list') {
+    const items = data.items || []
+    return (
+      <div className="space-y-2">
+        {items.map((item, i) => (
+          <div key={i} className="flex items-start gap-2">
+            <textarea value={item} onChange={(e) => {
+              const next = [...items]
+              next[i] = e.target.value
+              updateData({ items: next })
+            }} rows={1} placeholder="項目を入力"
+              className="flex-1 text-sm text-navy bg-navy/3 rounded-lg px-3 py-2 outline-none placeholder:text-navy/25 resize-none" />
+            <button type="button" onClick={() => updateData({ items: items.filter((_, j) => j !== i) })}
+              className="text-red-400 hover:text-red-600 text-xs font-bold cursor-pointer mt-2 shrink-0">×</button>
+          </div>
+        ))}
+        <button type="button" onClick={() => updateData({ items: [...items, ''] })}
+          className="text-xs font-bold text-navy/50 bg-navy/5 px-4 py-2 rounded-full hover:bg-navy/10 cursor-pointer transition-colors">
+          ＋ 項目を追加
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <textarea value={data.text || ''} onChange={(e) => updateData({ text: e.target.value })}
+      placeholder="自由に記述してください" rows={4}
+      className="w-full text-sm text-navy bg-navy/3 rounded-lg px-3 py-2 outline-none placeholder:text-navy/25 resize-none" />
   )
 }
 
@@ -111,7 +218,6 @@ function FeedbackPanel({ feedback, loading, error }) {
 
   return (
     <div className="space-y-4 text-sm">
-      {/* Overall */}
       {feedback.overall && (
         <div className="bg-blue-50 rounded-xl p-4 flex items-start gap-2">
           <span className="shrink-0">💬</span>
@@ -119,7 +225,6 @@ function FeedbackPanel({ feedback, loading, error }) {
         </div>
       )}
 
-      {/* Issues */}
       {feedback.issues?.length > 0 && (
         <div className="space-y-2">
           <h4 className="text-xs font-black text-navy/40 uppercase tracking-widest">指摘事項</h4>
@@ -139,7 +244,6 @@ function FeedbackPanel({ feedback, loading, error }) {
         </div>
       )}
 
-      {/* Strengths */}
       {feedback.strengths?.length > 0 && (
         <div className="space-y-1.5">
           <h4 className="text-xs font-black text-navy/40 uppercase tracking-widest">良い点</h4>
@@ -152,7 +256,6 @@ function FeedbackPanel({ feedback, loading, error }) {
         </div>
       )}
 
-      {/* Missing */}
       {feedback.missing?.length > 0 && (
         <div className="space-y-1.5">
           <h4 className="text-xs font-black text-navy/40 uppercase tracking-widest">まだ書けていない項目</h4>
@@ -173,27 +276,76 @@ export default function RuleDesign() {
   const navigate = useNavigate()
   const { template, rules, setTemplate, setRules, setGameTitle } = useGameStore()
   const [phase, setPhase] = useState(template ? 'editor' : 'template')
-  const [openSections, setOpenSections] = useState([1, 2, 3, 4])
+  const [openSections, setOpenSections] = useState(['basic', 'factions', 'phases', 'special'])
   const [feedback, setFeedback] = useState(null)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState(null)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [deletedSection, setDeletedSection] = useState(null)
 
-  const sensors = useSensors(
+  const sections = rules.sections || [
+    { id: 'basic', type: 'default', title: 'ゲームの基本情報', icon: '📋', deletable: false },
+    { id: 'factions', type: 'default', title: 'ゲームの目的', icon: '🎯', deletable: false },
+    { id: 'phases', type: 'default', title: 'ゲームの流れ', icon: '🔄', deletable: false },
+    { id: 'special', type: 'default', title: '特殊ルール・例外', icon: '⚡', deletable: false },
+  ]
+
+  const sectionSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+  const phaseSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
   const inputClass = 'w-full rounded-xl border-2 border-blue-200 bg-white px-4 py-3 text-sm text-navy placeholder:text-navy/30 focus:outline-none focus:border-navy transition-colors'
 
-  const toggleSection = (n) => {
-    setOpenSections((s) => s.includes(n) ? s.filter((x) => x !== n) : [...s, n])
+  const toggleSection = (id) => {
+    setOpenSections((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id])
   }
 
-  const isCompleted = (n) => (rules.completedSections || []).includes(n)
-  const toggleCompleted = (n) => {
+  const isCompleted = (id) => (rules.completedSections || []).includes(id)
+  const toggleCompleted = (id) => {
     const current = rules.completedSections || []
-    const next = current.includes(n) ? current.filter((x) => x !== n) : [...current, n]
+    const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id]
     setRules({ completedSections: next })
+  }
+
+  // Section management
+  const handleSectionDragEnd = (event) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = sections.findIndex((s) => s.id === active.id)
+    const newIndex = sections.findIndex((s) => s.id === over.id)
+    setRules({ sections: arrayMove(sections, oldIndex, newIndex) })
+  }
+
+  const handleAddSection = (name, sectionType) => {
+    const newSection = {
+      id: `custom_${uid()}`,
+      type: 'custom',
+      title: name,
+      icon: sectionType === 'list' ? '📋' : '📝',
+      deletable: true,
+      sectionType,
+    }
+    setRules({ sections: [...sections, newSection] })
+    setOpenSections([...openSections, newSection.id])
+    setShowAddModal(false)
+  }
+
+  const handleDeleteSection = (id) => {
+    const section = sections.find((s) => s.id === id)
+    setDeletedSection(section)
+    setRules({ sections: sections.filter((s) => s.id !== id) })
+    setTimeout(() => setDeletedSection(null), 5000)
+  }
+
+  const handleUndoDelete = () => {
+    if (!deletedSection) return
+    setRules({ sections: [...sections, deletedSection] })
+    setDeletedSection(null)
   }
 
   // Faction helpers
@@ -221,7 +373,7 @@ export default function RuleDesign() {
   const removePhase = (index) => {
     setRules({ phases: (rules.phases || []).filter((_, i) => i !== index) })
   }
-  const handleDragEnd = (event) => {
+  const handlePhaseDragEnd = (event) => {
     const { active, over } = event
     if (!over || active.id === over.id) return
     const phases = rules.phases || []
@@ -263,6 +415,130 @@ export default function RuleDesign() {
     navigate('/cards')
   }
 
+  // Render section content by ID
+  const renderSectionContent = (section) => {
+    switch (section.id) {
+      case 'basic':
+        return (
+          <>
+            <div>
+              <label className="block text-xs font-bold text-navy/60 mb-1">ゲームタイトル</label>
+              <input type="text" value={rules.gameTitle || ''} onChange={(e) => setRules({ gameTitle: e.target.value })}
+                placeholder="例：ひみつの晩餐会" className={`${inputClass} text-lg font-bold`} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-navy/60 mb-1">最少人数</label>
+                <input type="number" min={1} max={20} value={rules.players?.min || 2}
+                  onChange={(e) => setRules({ players: { ...rules.players, min: Number(e.target.value) } })}
+                  className={inputClass} />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-navy/60 mb-1">最大人数</label>
+                <input type="number" min={1} max={20} value={rules.players?.max || 6}
+                  onChange={(e) => setRules({ players: { ...rules.players, max: Number(e.target.value) } })}
+                  className={inputClass} />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-navy/60 mb-1">プレイ時間（目安）</label>
+              <input type="text" value={rules.duration || ''} onChange={(e) => setRules({ duration: e.target.value })}
+                placeholder="例：15〜30分" className={inputClass} />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-navy/60 mb-1">ゲームの雰囲気・テーマ</label>
+              <textarea value={rules.theme || ''} onChange={(e) => setRules({ theme: e.target.value })}
+                placeholder="例：プレイヤーそれぞれが秘密を抱えながら会話を楽しむゲーム" rows={2}
+                className={`${inputClass} resize-none`} />
+            </div>
+          </>
+        )
+      case 'factions':
+        return (
+          <>
+            <p className="text-xs text-navy/40">各陣営の勝利条件を設定してください。</p>
+            <div className="space-y-2">
+              {(rules.factions || []).map((f, i) => (
+                <div key={f.id} className="bg-navy/3 rounded-xl p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input type="text" value={f.name} onChange={(e) => updateFaction(i, { name: e.target.value })}
+                      placeholder="陣営名（例：チームA）"
+                      className="flex-1 text-sm font-bold text-navy bg-transparent outline-none placeholder:text-navy/25" />
+                    {(rules.factions || []).length > 1 && (
+                      <button type="button" onClick={() => removeFaction(i)}
+                        className="text-red-400 hover:text-red-600 text-xs font-bold cursor-pointer">削除</button>
+                    )}
+                  </div>
+                  <textarea value={f.winCondition} onChange={(e) => updateFaction(i, { winCondition: e.target.value })}
+                    placeholder="勝利条件（例：ゲーム終了時に最も多くのポイントを持っているチームが勝利）" rows={2}
+                    className="w-full text-sm text-navy bg-white rounded-lg px-3 py-2 outline-none placeholder:text-navy/25 resize-none border border-navy/10" />
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={addFaction}
+              className="text-xs font-bold text-navy/50 bg-navy/5 px-4 py-2 rounded-full hover:bg-navy/10 cursor-pointer transition-colors">
+              ＋ 陣営を追加
+            </button>
+          </>
+        )
+      case 'phases':
+        return (
+          <>
+            <p className="text-xs text-navy/40">ターン・フェーズを順番に記述してください。ドラッグで並び替えできます。</p>
+            <DndContext sensors={phaseSensors} collisionDetection={closestCenter} onDragEnd={handlePhaseDragEnd}>
+              <SortableContext items={(rules.phases || []).map((p) => p.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-2">
+                  {(rules.phases || []).map((p, i) => (
+                    <SortablePhase key={p.id} phase={p} index={i}
+                      onChange={(data) => updatePhase(i, data)}
+                      onRemove={() => removePhase(i)} />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+            <button type="button" onClick={addPhase}
+              className="text-xs font-bold text-navy/50 bg-navy/5 px-4 py-2 rounded-full hover:bg-navy/10 cursor-pointer transition-colors">
+              ＋ フェーズを追加
+            </button>
+          </>
+        )
+      case 'special':
+        return (
+          <>
+            <p className="text-xs text-navy/40">特殊能力や例外ルールを追加できます。</p>
+            <div className="space-y-2">
+              {(rules.specialRules || []).map((r, i) => (
+                <div key={r.id} className="bg-navy/3 rounded-xl p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input type="text" value={r.title} onChange={(e) => updateSpecialRule(i, { title: e.target.value })}
+                      placeholder="ルール名（例：スキップルール）"
+                      className="flex-1 text-sm font-bold text-navy bg-transparent outline-none placeholder:text-navy/25" />
+                    {(rules.specialRules || []).length > 1 && (
+                      <button type="button" onClick={() => removeSpecialRule(i)}
+                        className="text-red-400 hover:text-red-600 text-xs font-bold cursor-pointer">削除</button>
+                    )}
+                  </div>
+                  <textarea value={r.description} onChange={(e) => updateSpecialRule(i, { description: e.target.value })}
+                    placeholder="例：手札が0枚になったプレイヤーは次のターンをスキップする" rows={2}
+                    className="w-full text-sm text-navy bg-white rounded-lg px-3 py-2 outline-none placeholder:text-navy/25 resize-none border border-navy/10" />
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={addSpecialRule}
+              className="text-xs font-bold text-navy/50 bg-navy/5 px-4 py-2 rounded-full hover:bg-navy/10 cursor-pointer transition-colors">
+              ＋ ルールを追加
+            </button>
+          </>
+        )
+      default:
+        // Custom section
+        if (section.type === 'custom') {
+          return <CustomSectionContent section={section} rules={rules} setRules={setRules} />
+        }
+        return null
+    }
+  }
+
   // ─── PHASE 1: Template Selection ───
   if (phase === 'template') {
     return (
@@ -294,118 +570,43 @@ export default function RuleDesign() {
       <div className="mt-8 flex flex-col lg:flex-row gap-6">
         {/* ─── Left Column: Rule Sections ─── */}
         <div className="lg:w-[60%] space-y-4">
-
-          {/* Section 1: Basic Info */}
-          <Section title="ゲームの基本情報" icon="📋" open={openSections.includes(1)}
-            onToggle={() => toggleSection(1)} completed={isCompleted(1)} onComplete={() => toggleCompleted(1)}>
-            <div>
-              <label className="block text-xs font-bold text-navy/60 mb-1">ゲームタイトル</label>
-              <input type="text" value={rules.gameTitle || ''} onChange={(e) => setRules({ gameTitle: e.target.value })}
-                placeholder="例：深夜の人狼" className={`${inputClass} text-lg font-bold`} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-navy/60 mb-1">最少人数</label>
-                <input type="number" min={1} max={20} value={rules.players?.min || 2}
-                  onChange={(e) => setRules({ players: { ...rules.players, min: Number(e.target.value) } })}
-                  className={inputClass} />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-navy/60 mb-1">最大人数</label>
-                <input type="number" min={1} max={20} value={rules.players?.max || 6}
-                  onChange={(e) => setRules({ players: { ...rules.players, max: Number(e.target.value) } })}
-                  className={inputClass} />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-navy/60 mb-1">プレイ時間（目安）</label>
-              <input type="text" value={rules.duration || ''} onChange={(e) => setRules({ duration: e.target.value })}
-                placeholder="例：15〜30分" className={inputClass} />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-navy/60 mb-1">ゲームの雰囲気・テーマ</label>
-              <textarea value={rules.theme || ''} onChange={(e) => setRules({ theme: e.target.value })}
-                placeholder="例：友達を疑いながらも協力しなければならない緊張感" rows={2}
-                className={`${inputClass} resize-none`} />
-            </div>
-          </Section>
-
-          {/* Section 2: Factions / Win Conditions */}
-          <Section title="ゲームの目的" icon="🏆" open={openSections.includes(2)}
-            onToggle={() => toggleSection(2)} completed={isCompleted(2)} onComplete={() => toggleCompleted(2)}>
-            <p className="text-xs text-navy/40">各陣営の勝利条件を設定してください。</p>
-            <div className="space-y-2">
-              {(rules.factions || []).map((f, i) => (
-                <div key={f.id} className="bg-navy/3 rounded-xl p-3 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <input type="text" value={f.name} onChange={(e) => updateFaction(i, { name: e.target.value })}
-                      placeholder="陣営名（例：村人側）"
-                      className="flex-1 text-sm font-bold text-navy bg-transparent outline-none placeholder:text-navy/25" />
-                    {(rules.factions || []).length > 1 && (
-                      <button type="button" onClick={() => removeFaction(i)}
-                        className="text-red-400 hover:text-red-600 text-xs font-bold cursor-pointer">削除</button>
-                    )}
-                  </div>
-                  <textarea value={f.winCondition} onChange={(e) => updateFaction(i, { winCondition: e.target.value })}
-                    placeholder="勝利条件（例：人狼を全員処刑すれば村人の勝利）" rows={2}
-                    className="w-full text-sm text-navy bg-white rounded-lg px-3 py-2 outline-none placeholder:text-navy/25 resize-none border border-navy/10" />
-                </div>
+          <DndContext sensors={sectionSensors} collisionDetection={closestCenter} onDragEnd={handleSectionDragEnd}>
+            <SortableContext items={sections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+              {sections.map((section) => (
+                <SortableSection key={section.id} section={section} onDelete={() => handleDeleteSection(section.id)}>
+                  {({ dragHandleProps, onDelete }) => (
+                    <Section
+                      title={section.title}
+                      icon={section.icon}
+                      open={openSections.includes(section.id)}
+                      onToggle={() => toggleSection(section.id)}
+                      completed={isCompleted(section.id)}
+                      onComplete={() => toggleCompleted(section.id)}
+                      dragHandleProps={dragHandleProps}
+                      onDelete={onDelete}
+                    >
+                      {renderSectionContent(section)}
+                    </Section>
+                  )}
+                </SortableSection>
               ))}
-            </div>
-            <button type="button" onClick={addFaction}
-              className="text-xs font-bold text-navy/50 bg-navy/5 px-4 py-2 rounded-full hover:bg-navy/10 cursor-pointer transition-colors">
-              ＋ 陣営を追加
-            </button>
-          </Section>
+            </SortableContext>
+          </DndContext>
 
-          {/* Section 3: Game Flow / Phases */}
-          <Section title="ゲームの流れ" icon="🔄" open={openSections.includes(3)}
-            onToggle={() => toggleSection(3)} completed={isCompleted(3)} onComplete={() => toggleCompleted(3)}>
-            <p className="text-xs text-navy/40">ターン・フェーズを順番に記述してください。ドラッグで並び替えできます。</p>
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={(rules.phases || []).map((p) => p.id)} strategy={verticalListSortingStrategy}>
-                <div className="space-y-2">
-                  {(rules.phases || []).map((p, i) => (
-                    <SortablePhase key={p.id} phase={p} index={i}
-                      onChange={(data) => updatePhase(i, data)}
-                      onRemove={() => removePhase(i)} />
-                  ))}
-                </div>
-              </SortableContext>
-            </DndContext>
-            <button type="button" onClick={addPhase}
-              className="text-xs font-bold text-navy/50 bg-navy/5 px-4 py-2 rounded-full hover:bg-navy/10 cursor-pointer transition-colors">
-              ＋ フェーズを追加
-            </button>
-          </Section>
+          {/* Add section button */}
+          <button type="button" onClick={() => setShowAddModal(true)}
+            className="w-full border-2 border-dashed border-navy/15 rounded-2xl py-4 text-sm font-bold text-navy/40 hover:border-navy/30 hover:text-navy/60 cursor-pointer transition-colors">
+            ＋ セクションを追加
+          </button>
 
-          {/* Section 4: Special Rules */}
-          <Section title="特殊ルール・例外" icon="⚡" open={openSections.includes(4)}
-            onToggle={() => toggleSection(4)} completed={isCompleted(4)} onComplete={() => toggleCompleted(4)}>
-            <p className="text-xs text-navy/40">特殊能力や例外ルールを追加できます。</p>
-            <div className="space-y-2">
-              {(rules.specialRules || []).map((r, i) => (
-                <div key={r.id} className="bg-navy/3 rounded-xl p-3 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <input type="text" value={r.title} onChange={(e) => updateSpecialRule(i, { title: e.target.value })}
-                      placeholder="ルール名（例：占師の能力）"
-                      className="flex-1 text-sm font-bold text-navy bg-transparent outline-none placeholder:text-navy/25" />
-                    {(rules.specialRules || []).length > 1 && (
-                      <button type="button" onClick={() => removeSpecialRule(i)}
-                        className="text-red-400 hover:text-red-600 text-xs font-bold cursor-pointer">削除</button>
-                    )}
-                  </div>
-                  <textarea value={r.description} onChange={(e) => updateSpecialRule(i, { description: e.target.value })}
-                    placeholder="例：占師は毎晩1人のプレイヤーの正体を知ることができる" rows={2}
-                    className="w-full text-sm text-navy bg-white rounded-lg px-3 py-2 outline-none placeholder:text-navy/25 resize-none border border-navy/10" />
-                </div>
-              ))}
+          {/* Undo delete toast */}
+          {deletedSection && (
+            <div className="flex items-center justify-between bg-navy/10 rounded-xl px-4 py-3">
+              <span className="text-sm text-navy">「{deletedSection.title}」を削除しました</span>
+              <button type="button" onClick={handleUndoDelete}
+                className="text-sm font-bold text-navy underline cursor-pointer">元に戻す</button>
             </div>
-            <button type="button" onClick={addSpecialRule}
-              className="text-xs font-bold text-navy/50 bg-navy/5 px-4 py-2 rounded-full hover:bg-navy/10 cursor-pointer transition-colors">
-              ＋ ルールを追加
-            </button>
-          </Section>
+          )}
 
           {/* Action Buttons */}
           <div className="space-y-3 pt-4">
@@ -437,6 +638,11 @@ export default function RuleDesign() {
           </div>
         </div>
       </div>
+
+      {/* Add Section Modal */}
+      {showAddModal && (
+        <AddSectionModal onAdd={handleAddSection} onCancel={() => setShowAddModal(false)} />
+      )}
     </PageShell>
   )
 }
