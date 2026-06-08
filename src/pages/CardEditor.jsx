@@ -36,6 +36,7 @@ export default function CardEditor() {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [tab, setTab] = useState('style')
   const [pdfLoading, setPdfLoading] = useState(false)
+  const [pdfError, setPdfError] = useState(null)
   const [showBack, setShowBack] = useState(false)
   const [flipping, setFlipping] = useState(false)
 
@@ -66,10 +67,13 @@ export default function CardEditor() {
 
   const handleDownloadPdf = async () => {
     setPdfLoading(true)
+    setPdfError(null)
     try {
       await generateCardPdf(cards, cardSpec.size, 'gamebox_cards_preview.pdf', backDesign)
-    } catch (err) { console.error('PDF generation failed:', err) }
-    finally { setPdfLoading(false) }
+    } catch (err) {
+      console.error('PDF generation failed:', err)
+      setPdfError('PDFの生成に失敗しました。カードにデザインが設定されているか確認してください。')
+    } finally { setPdfLoading(false) }
   }
 
   const handleFlip = () => {
@@ -409,6 +413,7 @@ export default function CardEditor() {
           {pdfLoading ? '生成中...' : 'PDFプレビュー'}
         </Button>
       </div>
+      {pdfError && <p className="text-red-500 text-sm mt-2">{pdfError}</p>}
 
       {/* Crop Modal */}
       {cropSrc && (

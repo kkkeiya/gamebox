@@ -12,6 +12,7 @@ export default function ExportPage() {
   const data = exportGameData(store)
   const jsonString = JSON.stringify(data, null, 2)
   const [pdfLoading, setPdfLoading] = useState(false)
+  const [pdfError, setPdfError] = useState(null)
   const [filter, setFilter] = useState('all')
 
   const cardTypes = useMemo(() => ['all', ...new Set(store.cards.map((c) => c.name))], [store.cards])
@@ -29,10 +30,13 @@ export default function ExportPage() {
 
   const handleDownloadPdf = async () => {
     setPdfLoading(true)
+    setPdfError(null)
     try {
       await generateCardPdf(store.cards, store.cardSpec.size, `${store.gameTitle || 'gamebox'}_cards.pdf`, store.cardSpec.back_design)
-    } catch (err) { console.error('PDF generation failed:', err) }
-    finally { setPdfLoading(false) }
+    } catch (err) {
+      console.error('PDF generation failed:', err)
+      setPdfError('PDFの生成に失敗しました。カードにデザインが設定されているか確認してください。')
+    } finally { setPdfLoading(false) }
   }
 
   const handleReset = () => { store.resetAll(); navigate('/') }
@@ -90,6 +94,7 @@ export default function ExportPage() {
           {pdfLoading ? '生成中...' : 'カードPDFをダウンロード'}
         </Button>
       </div>
+      {pdfError && <p className="text-red-500 text-sm mt-2">{pdfError}</p>}
 
       <button type="button" onClick={handleReset}
         className="mt-4 w-full rounded-full border-2 border-navy/15 text-navy font-bold py-3.5 text-base hover:bg-navy/5 transition-colors cursor-pointer">
