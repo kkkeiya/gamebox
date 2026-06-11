@@ -185,7 +185,6 @@ export async function generateCardPdf(cards, size = 'poker', filename = 'gamebox
 
       // Title text (top) - rendered as image
       const titleText = design.title_text || card.name || card.type || ''
-      let titleBottomY = padding + 2
       if (titleText && (design.layout || 'title-top') !== 'no-title') {
         const titleImg = textToImage(titleText, {
           fontSize: 11,
@@ -202,7 +201,6 @@ export async function generateCardPdf(cards, size = 'poker', filename = 'gamebox
           try {
             doc.addImage(titleImg.dataUrl, 'PNG', (cardW - finalW) / 2, padding, finalW, finalH)
           } catch { /* skip */ }
-          titleBottomY = padding + finalH + 1
         }
       }
 

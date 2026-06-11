@@ -420,14 +420,25 @@ function buildFlowItems(rules) {
   })
 }
 
+// Custom section values are stored as { text } or { items: [] } objects
+function customSectionText(value) {
+  if (!value) return ''
+  if (typeof value === 'string') return value
+  if (Array.isArray(value.items)) {
+    return value.items.filter((it) => it && it.trim()).map((it) => `・${it}`).join('\n')
+  }
+  return value.text || ''
+}
+
 function buildSpecialItems(rules) {
   const specials = [
     ...(rules.specialRules || [])
       .filter((r) => r.title || r.description)
       .map((r) => ({ title: r.title, desc: r.description })),
     ...((rules.sections || [])
-      .filter((s) => s.type === 'custom' && rules.customSections?.[s.id])
-      .map((s) => ({ title: s.title, desc: rules.customSections[s.id] }))),
+      .filter((s) => s.type === 'custom')
+      .map((s) => ({ title: s.title, desc: customSectionText(rules.customSections?.[s.id]) }))
+      .filter((s) => s.title || s.desc)),
   ]
   return specials.map((sp) => {
     const item = [

@@ -73,8 +73,15 @@ const state = {
     specialRules: Array.from({ length: 6 }, (_, i) => ({
       id: `s${i}`, title: `特別ルール${i + 1}`, description: `この条件を満たした場合、${longText.slice(0, 70)}`,
     })),
-    sections: [{ id: 'cs1', type: 'custom', title: '用語解説' }],
-    customSections: { cs1: '「探索」…山札からカードを引くこと。「交渉」…他プレイヤーとカードを交換すること。' },
+    sections: [
+      { id: 'cs1', type: 'custom', title: '用語解説' },
+      { id: 'cs2', type: 'custom', title: '持ち物リスト' },
+    ],
+    // real app stores custom sections as { text } or { items: [] } objects
+    customSections: {
+      cs1: { text: '「探索」…山札からカードを引くこと。「交渉」…他プレイヤーとカードを交換すること。' },
+      cs2: { items: ['筆記用具', 'トークン20個', 'タイマー（スマホ可）'] },
+    },
   },
 }
 

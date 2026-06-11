@@ -14,19 +14,40 @@ const TEMPLATE_LABELS = {
   original: 'オリジナル',
 }
 
+// Custom section values are stored as { text } or { items: [] } objects
+function customSectionText(value) {
+  if (!value) return ''
+  if (typeof value === 'string') return value
+  if (Array.isArray(value.items)) return value.items.filter((it) => it && it.trim()).join('\n')
+  return value.text || ''
+}
+
 export function exportGameData(state) {
   const pricing = calculatePrice(state.cards, state.cardSpec, state.rulebook)
   return {
     order: {
       created_at: new Date().toISOString(),
-      game_title: state.gameTitle,
+      game_title: state.gameTitle || state.rules.gameTitle || '',
       genre: state.genre,
       template: TEMPLATE_LABELS[state.template] || state.template || 'オリジナル',
     },
     rules: {
       players: state.rules.players,
       duration: state.rules.duration,
-      objective: state.rules.objective,
+      theme: state.rules.theme || '',
+      factions: (state.rules.factions || [])
+        .filter((f) => f.name || f.winCondition)
+        .map((f) => ({ name: f.name, win_condition: f.winCondition })),
+      phases: (state.rules.phases || [])
+        .filter((p) => p.name || p.content)
+        .map((p) => ({ name: p.name, content: p.content, end_condition: p.endCondition })),
+      special_rules: (state.rules.specialRules || [])
+        .filter((r) => r.title || r.description)
+        .map((r) => ({ title: r.title, description: r.description })),
+      custom_sections: (state.rules.sections || [])
+        .filter((s) => s.type === 'custom')
+        .map((s) => ({ title: s.title, content: customSectionText(state.rules.customSections?.[s.id]) }))
+        .filter((s) => s.title || s.content),
       template_answers: state.rules.template_answers || {},
     },
     card_spec: {
@@ -44,8 +65,8 @@ export function exportGameData(state) {
     })),
     rulebook: {
       include: state.rulebook.include,
-      pages: state.rulebook.pages,
-      size: 'A5',
+      format: 'A4両面・巻き折り16面',
+      faces: 16,
     },
     pricing: {
       base_fee: pricing.baseFee,

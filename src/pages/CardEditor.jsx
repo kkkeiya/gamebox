@@ -33,7 +33,7 @@ const BACK_STYLES = [
 
 export default function CardEditor() {
   const navigate = useNavigate()
-  const { cards, cardSpec, updateCard, updateCardDesign, setCardSpec } = useGameStore()
+  const { cards, cardSpec, updateCardDesign, setCardSpec } = useGameStore()
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [tab, setTab] = useState('style')
   const [leftTab, setLeftTab] = useState('select') // 'select' | 'batch'

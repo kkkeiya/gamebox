@@ -7,13 +7,9 @@ import Header from '../components/layout/Header'
 export default function Projects() {
   const navigate = useNavigate()
   const { resetAll, loadProject, setCurrentProjectId } = useGameStore()
-  const [projects, setProjects] = useState([])
+  const [projects, setProjects] = useState(() => projectStorage.getAll())
   const [contextMenu, setContextMenu] = useState(null)
   const menuRef = useRef(null)
-
-  useEffect(() => {
-    setProjects(projectStorage.getAll())
-  }, [])
 
   useEffect(() => {
     const handleClick = (e) => {

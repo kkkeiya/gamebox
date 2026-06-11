@@ -65,7 +65,7 @@ export default function OrderPreview() {
           <div className="flex items-center justify-between">
             <div>
               <span className="text-sm font-bold text-navy">ルールブックを含める</span>
-              <span className="block text-xs text-navy/40 mt-0.5">A4・4つ折り8面 +¥5,000</span>
+              <span className="block text-xs text-navy/40 mt-0.5">A4両面・巻き折り16面 +¥5,000</span>
             </div>
             <button type="button" onClick={() => setRulebook({ include: !rulebook.include })}
               className={`w-12 h-7 rounded-full transition-colors relative cursor-pointer ${rulebook.include ? 'bg-accent' : 'bg-navy/20'}`}>

@@ -9,7 +9,17 @@ export function useAutoSave() {
   const prevRef = useRef(null)
 
   useEffect(() => {
-    if (!store.currentProjectId) return
+    const r = store.rules
+    const hasContent = Boolean(
+      r.gameTitle || r.theme || store.cards.length > 0 ||
+      (r.factions || []).some((f) => f.name || f.winCondition) ||
+      (r.phases || []).some((p) => p.name || p.content) ||
+      (r.specialRules || []).some((s) => s.title || s.description)
+    )
+
+    // No project yet (e.g. entered from Home): create one as soon as
+    // the user has actually written something, so nothing is ever lost.
+    if (!store.currentProjectId && !hasContent) return
 
     const snapshot = JSON.stringify({
       genre: store.genre,
@@ -27,9 +37,8 @@ export function useAutoSave() {
     if (timerRef.current) clearTimeout(timerRef.current)
     timerRef.current = setTimeout(() => {
       const totalCards = store.cards.reduce((sum, c) => sum + (c.count || 0), 0)
-      const hasContent = store.rules.gameTitle || store.cards.length > 0
-      projectStorage.save({
-        id: store.currentProjectId,
+      const project = projectStorage.save({
+        id: store.currentProjectId || undefined,
         genre: store.genre,
         gameTitle: store.gameTitle || store.rules.gameTitle || '',
         template: store.template,
@@ -37,9 +46,12 @@ export function useAutoSave() {
         cards: store.cards,
         cardSpec: store.cardSpec,
         rulebook: store.rulebook,
-        status: hasContent ? 'draft' : 'draft',
+        status: 'draft',
         totalCards,
       })
+      if (!store.currentProjectId && project?.id) {
+        useGameStore.getState().setCurrentProjectId(project.id)
+      }
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     }, 2000)

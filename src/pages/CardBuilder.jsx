@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../store/gameStore'
 import PageShell from '../components/layout/PageShell'
@@ -57,23 +57,23 @@ const inputClass = 'w-full rounded-xl border-2 border-blue-200 bg-white px-4 py-
 
 export default function CardBuilder() {
   const navigate = useNavigate()
-  const { cards, cardSpec, template, rules, addCard, removeCard, updateCardCount, setCardSpec, setCards } = useGameStore()
+  const { cards, cardSpec, template, rules, addCard, removeCard, updateCardCount, setCardSpec } = useGameStore()
   const [name, setName] = useState('')
   const [count, setCount] = useState(1)
   const [description, setDescription] = useState('')
-  const [suggested, setSuggested] = useState(false)
+  const suggestedRef = useRef(false)
 
   // Auto-suggest cards from template on first visit
   useEffect(() => {
-    if (cards.length === 0 && template && !suggested) {
+    if (cards.length === 0 && template && !suggestedRef.current) {
       const players = typeof rules.players === 'number' ? rules.players : (rules.players?.max || 6)
       const suggestions = getSuggestedCards(template, players, rules.template_answers)
       if (suggestions.length > 0) {
         suggestions.forEach((c) => addCard({ ...c, text: '' }))
-        setSuggested(true)
+        suggestedRef.current = true
       }
     }
-  }, [template, cards.length, suggested, rules.players, rules.template_answers, addCard])
+  }, [template, cards.length, rules.players, rules.template_answers, addCard])
 
   const totalCards = cards.reduce((sum, c) => sum + (c.count || 0), 0)
 
