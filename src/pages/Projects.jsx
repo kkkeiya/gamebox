@@ -123,7 +123,7 @@ export default function Projects() {
                   {/* Info area */}
                   <div className="p-3">
                     <p className="font-bold text-navy text-sm truncate">{project.gameTitle || project.rules?.gameTitle || '無題のゲーム'}</p>
-                    <p className="text-xs text-[#8A96B0] mt-1">{formatDate(project.createdAt)}</p>
+                    <p className="text-xs text-[#8A96B0] mt-1">{formatDate(project.createdAt || project.updatedAt)}</p>
                     <p className="text-xs text-[#8A96B0]">カード {project.totalCards || 0}枚</p>
                   </div>
                 </div>
