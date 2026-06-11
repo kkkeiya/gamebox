@@ -46,7 +46,6 @@ export function useAutoSave() {
         cards: store.cards,
         cardSpec: store.cardSpec,
         rulebook: store.rulebook,
-        status: 'draft',
         totalCards,
       })
       if (!store.currentProjectId && project?.id) {

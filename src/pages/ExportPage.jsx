@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../store/gameStore'
 import { exportGameData } from '../lib/exportJson'
+import { projectStorage } from '../lib/projectStorage'
 import { generateCardPdf } from '../lib/generatePdf'
 import { generateRulebook } from '../lib/generateRulebook'
 import PageShell from '../components/layout/PageShell'
@@ -17,6 +18,7 @@ export default function ExportPage() {
   const [rbLoading, setRbLoading] = useState(false)
   const [rbError, setRbError] = useState(null)
   const [filter, setFilter] = useState('all')
+  const [exported, setExported] = useState(false)
 
   const cardTypes = useMemo(() => ['all', ...new Set(store.cards.map((c) => c.name))], [store.cards])
   const filteredCards = filter === 'all' ? store.cards : store.cards.filter((c) => c.name === filter)
@@ -29,6 +31,11 @@ export default function ExportPage() {
     a.download = `${store.gameTitle || 'gamebox'}-order.json`
     a.click()
     URL.revokeObjectURL(url)
+    // Mark the saved project as complete
+    if (store.currentProjectId) {
+      projectStorage.save({ id: store.currentProjectId, status: 'complete' })
+    }
+    setExported(true)
   }
 
   const handleDownloadPdf = async () => {
@@ -53,7 +60,11 @@ export default function ExportPage() {
     } finally { setRbLoading(false) }
   }
 
-  const handleReset = () => { store.resetAll(); navigate('/') }
+  const handleReset = () => {
+    if (!confirm('いまの作品はマイゲームに保存されています。新しいゲームを作り始めますか？')) return
+    store.resetAll()
+    navigate('/')
+  }
 
   return (
     <PageShell>
@@ -116,7 +127,25 @@ export default function ExportPage() {
           {rbLoading ? '生成中...' : '📖 ルールブックをダウンロード'}
         </button>
         {rbError && <p className="text-red-500 text-sm mt-2">{rbError}</p>}
+        {!store.rulebook?.include && (
+          <p className="text-xs text-navy/40 mt-2 text-center">
+            ※見積もりにはルールブック印刷が含まれていません（PDFプレビューは無料です）
+          </p>
+        )}
       </div>
+
+      {/* ─── Completion banner ─── */}
+      {exported && (
+        <div className="mt-6 bg-accent/20 border-2 border-accent rounded-2xl p-5 text-center">
+          <p className="text-2xl">🎉</p>
+          <p className="mt-1 font-black text-navy">発注データを出力しました！</p>
+          <p className="mt-1 text-sm text-navy/60">この作品はマイゲームで「完成」として保存されています。</p>
+          <button type="button" onClick={() => navigate('/projects')}
+            className="mt-4 bg-navy text-white font-bold text-sm px-6 py-2.5 rounded-full hover:bg-navy/90 transition-colors cursor-pointer">
+            マイゲーム一覧を見る →
+          </button>
+        </div>
+      )}
 
       <button type="button" onClick={handleReset}
         className="mt-4 w-full rounded-full border-2 border-navy/15 text-navy font-bold py-3.5 text-base hover:bg-navy/5 transition-colors cursor-pointer">

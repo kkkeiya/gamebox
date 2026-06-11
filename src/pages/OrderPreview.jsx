@@ -1,7 +1,8 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../store/gameStore'
 import { calculatePrice } from '../lib/pricing'
+import { generateRulebook } from '../lib/generateRulebook'
 import PageShell from '../components/layout/PageShell'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
@@ -15,8 +16,20 @@ export default function OrderPreview() {
   const { genre, gameTitle, rules, cards, cardSpec, rulebook, setCardSpec, setRulebook } = useGameStore()
   const pricing = calculatePrice(cards, cardSpec, rulebook)
   const scrollRef = useRef(null)
+  const [rbLoading, setRbLoading] = useState(false)
 
   const fmt = (n) => n.toLocaleString('ja-JP')
+
+  const handleRulebookPreview = async () => {
+    setRbLoading(true)
+    try {
+      await generateRulebook(useGameStore.getState())
+    } catch (err) {
+      console.error('Rulebook preview failed:', err)
+    } finally {
+      setRbLoading(false)
+    }
+  }
 
   return (
     <PageShell>
@@ -73,9 +86,9 @@ export default function OrderPreview() {
             </button>
           </div>
           {rulebook.include && (
-            <button type="button" onClick={() => navigate('/export')}
-              className="mt-3 w-full text-xs font-bold text-navy bg-navy/5 px-3 py-2 rounded-full hover:bg-navy/10 cursor-pointer transition-colors text-center">
-              📖 ルールブックプレビュー →
+            <button type="button" onClick={handleRulebookPreview} disabled={rbLoading}
+              className="mt-3 w-full text-xs font-bold text-navy bg-navy/5 px-3 py-2 rounded-full hover:bg-navy/10 cursor-pointer transition-colors text-center disabled:opacity-50">
+              {rbLoading ? '生成中...' : '📖 ルールブックPDFをプレビュー'}
             </button>
           )}
         </Card>

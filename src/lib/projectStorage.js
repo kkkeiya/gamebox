@@ -16,11 +16,13 @@ export const projectStorage = {
     const existing = projects.findIndex((p) => p.id === project.id)
 
     if (existing >= 0) {
-      projects[existing] = { ...project, updatedAt: now }
+      // Merge so fields not included in this save (createdAt, status, ...) survive
+      projects[existing] = { ...projects[existing], ...project, updatedAt: now }
     } else {
       projects.unshift({
         ...project,
         id: `project_${Date.now()}`,
+        status: project.status || 'draft',
         createdAt: now,
         updatedAt: now,
       })

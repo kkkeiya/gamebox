@@ -273,7 +273,7 @@ function FeedbackPanel({ feedback, loading, error }) {
 /* ───── Main Page ───── */
 export default function RuleDesign() {
   const navigate = useNavigate()
-  const { template, rules, setTemplate, setRules, setGameTitle } = useGameStore()
+  const { template, rules, setTemplate, setRules, setGameTitle, setGenre } = useGameStore()
   const [phase, setPhase] = useState(template ? 'editor' : 'template')
   const [openSections, setOpenSections] = useState(['basic', 'factions', 'phases', 'special'])
   const [feedback, setFeedback] = useState(null)
@@ -545,7 +545,12 @@ export default function RuleDesign() {
         <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
           {TEMPLATES.map((t) => (
             <button key={t.key} type="button"
-              onClick={() => { setTemplate(t.key); setPhase('editor') }}
+              onClick={() => {
+                setTemplate(t.key)
+                // Keep genre coherent when entering without picking one on Home
+                if (t.key === 'coop') setGenre('coop')
+                setPhase('editor')
+              }}
               className="text-left rounded-2xl border-2 border-navy/10 bg-white p-5 hover:border-navy/30 hover:-translate-y-0.5 transition-all cursor-pointer">
               <span className="text-3xl">{t.emoji}</span>
               <p className="mt-2 font-black text-navy text-sm">{t.name}</p>
